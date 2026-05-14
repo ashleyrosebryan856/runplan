@@ -44,7 +44,42 @@
     .dist-unit { font-size: 11px; color: rgba(255,255,255,0.5); letter-spacing: 0.05em; }
     .dist-km { font-size: 13px; color: rgba(255,255,255,0.4); }
 
-    button {
+    .mode-toggle {
+      display: flex;
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-right: 4px;
+    }
+
+    .mode-toggle button {
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      color: rgba(255,255,255,0.5);
+      padding: 6px 16px;
+      font-size: 11px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .mode-toggle button:first-child {
+      border-right: 1px solid rgba(255,255,255,0.3);
+    }
+
+    .mode-toggle button.active {
+      background: #f5f3ef;
+      color: #1a1a1a;
+    }
+
+    .mode-toggle button:not(.active):hover {
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.8);
+    }
+
+    button.action {
       background: transparent;
       border: 1px solid rgba(255,255,255,0.3);
       color: #f5f3ef;
@@ -54,23 +89,24 @@
       text-transform: uppercase;
       cursor: pointer;
       border-radius: 3px;
+      transition: background 0.15s;
     }
-    button:hover { background: rgba(255,255,255,0.1); }
+    button.action:hover { background: rgba(255,255,255,0.1); }
 
     #map {
       position: fixed;
       top: 56px;
       left: 0; right: 0; bottom: 0;
-      cursor: crosshair;
     }
+    #map.route-mode { cursor: crosshair; }
 
     .hint {
       position: fixed;
       bottom: 24px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(20,20,20,0.8);
-      color: rgba(255,255,255,0.9);
+      background: rgba(20,20,20,0.85);
+      color: rgba(255,255,255,0.95);
       font-size: 12px;
       letter-spacing: 0.04em;
       padding: 8px 20px;
@@ -78,9 +114,24 @@
       pointer-events: none;
       z-index: 1000;
       white-space: nowrap;
-      transition: opacity 0.4s;
+      transition: opacity 0.5s;
     }
     .hint.hidden { opacity: 0; }
+
+    .snapping-indicator {
+      position: fixed;
+      top: 68px;
+      right: 16px;
+      background: rgba(20,20,20,0.8);
+      color: rgba(255,255,255,0.85);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      padding: 5px 12px;
+      border-radius: 12px;
+      z-index: 1000;
+      display: none;
+    }
+    .snapping-indicator.visible { display: block; }
   </style>
 </head>
 <body>
@@ -93,14 +144,21 @@
       <span class="dist-unit">mi</span>
       <span class="dist-km" id="dist-km">· 0.00 km</span>
     </div>
-    <button onclick="undoLast()">Undo</button>
-    <button onclick="clearRoute()">Clear</button>
-    <button onclick="locateMe()" title="My location">⊕</button>
+
+    <div class="mode-toggle">
+      <button id="btn-map" onclick="setMode('map')" class="active">Map</button>
+      <button id="btn-route" onclick="setMode('route')">Route</button>
+    </div>
+
+    <button class="action" onclick="undoStroke()">Undo</button>
+    <button class="action" onclick="clearRoute()">Clear</button>
+    <button class="action" onclick="locateMe()">⊕</button>
   </div>
 </header>
 
 <div id="map"></div>
-<div class="hint" id="hint">Hold and drag to draw your route</div>
+<div class="hint" id="hint">Switch to Route to start drawing</div>
+<div class="snapping-indicator" id="snap-indicator">Snapping to roads…</div>
 
 <script>
   const map = L.map('map', { zoomControl: true }).setView([45.5231, -122.6765], 13);
@@ -110,10 +168,99 @@
     maxZoom: 19
   }).addTo(map);
 
-  let points = [], polyline = null, startMarker = null;
+  // strokes: each stroke is an array of snapped latlngs
+  // currentStroke: raw freehand points for the stroke in progress
+  let strokes = [];
+  let currentStroke = [];
   let drawing = false;
+  let mode = 'map';
+
+  let previewLine = null;   // thin red freehand preview while drawing
+  let snappedLines = [];    // one polyline per completed snapped stroke
+  let startMarker = null;
+
   const hint = document.getElementById('hint');
-  const MIN_DIST = 8;
+  const snapIndicator = document.getElementById('snap-indicator');
+  const mapEl = document.getElementById('map');
+  const MIN_DIST = 10;
+
+  let hintTimer = null;
+  function showHint(msg, duration) {
+    clearTimeout(hintTimer);
+    hint.textContent = msg;
+    hint.classList.remove('hidden');
+    if (duration) hintTimer = setTimeout(() => hint.classList.add('hidden'), duration);
+  }
+
+  function setMode(m) {
+    mode = m;
+    document.getElementById('btn-map').classList.toggle('active', m === 'map');
+    document.getElementById('btn-route').classList.toggle('active', m === 'route');
+    mapEl.classList.toggle('route-mode', m === 'route');
+
+    if (m === 'map') {
+      map.dragging.enable();
+      map.scrollWheelZoom.enable();
+      map.doubleClickZoom.enable();
+      map.touchZoom.enable();
+      showHint('Map mode — pan and zoom freely', 2000);
+    } else {
+      map.dragging.disable();
+      map.scrollWheelZoom.disable();
+      map.doubleClickZoom.disable();
+      map.touchZoom.disable();
+      showHint('Route mode — draw freely, snaps to roads on release', 3000);
+    }
+  }
+
+  // Douglas-Peucker simplification to reduce waypoints sent to OSRM
+  function perpDist(pt, lineStart, lineEnd) {
+    const dx = lineEnd.lng - lineStart.lng;
+    const dy = lineEnd.lat - lineStart.lat;
+    const len2 = dx*dx + dy*dy;
+    if (len2 === 0) {
+      const ddx = pt.lng - lineStart.lng, ddy = pt.lat - lineStart.lat;
+      return Math.sqrt(ddx*ddx + ddy*ddy);
+    }
+    const t = Math.max(0, Math.min(1, ((pt.lng - lineStart.lng)*dx + (pt.lat - lineStart.lat)*dy) / len2));
+    const projx = lineStart.lng + t*dx, projy = lineStart.lat + t*dy;
+    const ex = pt.lng - projx, ey = pt.lat - projy;
+    return Math.sqrt(ex*ex + ey*ey);
+  }
+
+  function simplify(pts, tolerance) {
+    if (pts.length <= 2) return pts;
+    let maxDist = 0, maxIdx = 0;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const d = perpDist(pts[i], pts[0], pts[pts.length-1]);
+      if (d > maxDist) { maxDist = d; maxIdx = i; }
+    }
+    if (maxDist > tolerance) {
+      const left = simplify(pts.slice(0, maxIdx+1), tolerance);
+      const right = simplify(pts.slice(maxIdx), tolerance);
+      return left.slice(0, -1).concat(right);
+    }
+    return [pts[0], pts[pts.length-1]];
+  }
+
+  async function snapToRoads(rawPoints) {
+    // Simplify to max 25 waypoints for OSRM
+    const simplified = simplify(rawPoints, 0.00015);
+    const capped = simplified.length > 25
+      ? simplified.filter((_, i) => i % Math.ceil(simplified.length/25) === 0 || i === simplified.length-1)
+      : simplified;
+
+    const coords = capped.map(p => `${p.lng},${p.lat}`).join(';');
+    const url = `https://router.project-osrm.org/route/v1/foot/${coords}?overview=full&geometries=geojson`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.code !== 'Ok' || !data.routes || !data.routes[0]) return null;
+
+    const coords2 = data.routes[0].geometry.coordinates;
+    return coords2.map(([lng, lat]) => ({ lat, lng }));
+  }
 
   function haversine(a, b) {
     const R = 6371000, r = x => x * Math.PI / 180;
@@ -122,9 +269,16 @@
     return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
   }
 
-  function updateDistance() {
+  function totalDistance() {
     let d = 0;
-    for (let i = 1; i < points.length; i++) d += haversine(points[i-1], points[i]);
+    for (const stroke of strokes) {
+      for (let i = 1; i < stroke.length; i++) d += haversine(stroke[i-1], stroke[i]);
+    }
+    return d;
+  }
+
+  function updateDistance() {
+    const d = totalDistance();
     document.getElementById('dist-mi').textContent = (d / 1609.344).toFixed(2);
     document.getElementById('dist-km').textContent = '· ' + (d / 1000).toFixed(2) + ' km';
   }
@@ -138,75 +292,106 @@
   }
 
   function startDraw(e) {
+    if (mode !== 'route') return;
     drawing = true;
-    map.dragging.disable();
-    map.doubleClickZoom.disable();
     hint.classList.add('hidden');
-
     const latlng = getLatLng(e);
     if (!latlng) return;
 
-    if (points.length === 0) {
-      if (startMarker) map.removeLayer(startMarker);
+    // Place start marker if first ever point
+    const allPoints = strokes.flat();
+    if (allPoints.length === 0 && !startMarker) {
       startMarker = L.circleMarker(latlng, {
         radius: 6, color: '#fff', weight: 2.5,
         fillColor: '#2d8a5e', fillOpacity: 1
       }).addTo(map);
     }
 
-    points.push(latlng);
+    currentStroke = [latlng];
 
-    if (!polyline) {
-      polyline = L.polyline(points, { color: '#c0392b', weight: 4, opacity: 0.85 }).addTo(map);
-    }
-
-    updateDistance();
+    if (previewLine) map.removeLayer(previewLine);
+    previewLine = L.polyline(currentStroke, {
+      color: '#c0392b', weight: 2.5, opacity: 0.5, dashArray: '6,4'
+    }).addTo(map);
   }
 
   function continueDraw(e) {
-    if (!drawing) return;
+    if (mode !== 'route' || !drawing) return;
     const latlng = getLatLng(e);
     if (!latlng) return;
-
-    const last = points[points.length - 1];
+    const last = currentStroke[currentStroke.length - 1];
     if (map.distance(last, latlng) < MIN_DIST) return;
-
-    points.push(latlng);
-    polyline.setLatLngs(points);
-    updateDistance();
+    currentStroke.push(latlng);
+    previewLine.setLatLngs(currentStroke);
   }
 
-  function stopDraw() {
+  async function stopDraw() {
+    if (!drawing) return;
     drawing = false;
-    map.dragging.enable();
-    map.doubleClickZoom.enable();
+    if (currentStroke.length < 2) {
+      if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
+      currentStroke = [];
+      return;
+    }
+
+    // Show snapping indicator
+    snapIndicator.classList.add('visible');
+
+    try {
+      const snapped = await snapToRoads(currentStroke);
+
+      if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
+
+      if (snapped && snapped.length > 1) {
+        strokes.push(snapped);
+        const line = L.polyline(snapped, { color: '#c0392b', weight: 4, opacity: 0.9 }).addTo(map);
+        snappedLines.push(line);
+      } else {
+        // Fallback: use raw freehand if OSRM fails
+        strokes.push(currentStroke);
+        const line = L.polyline(currentStroke, { color: '#c0392b', weight: 4, opacity: 0.9 }).addTo(map);
+        snappedLines.push(line);
+      }
+    } catch (err) {
+      // Fallback on network error
+      if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
+      strokes.push(currentStroke);
+      const line = L.polyline(currentStroke, { color: '#c0392b', weight: 4, opacity: 0.9 }).addTo(map);
+      snappedLines.push(line);
+    }
+
+    snapIndicator.classList.remove('visible');
+    currentStroke = [];
+    updateDistance();
   }
 
   map.on('mousedown', startDraw);
   map.on('mousemove', continueDraw);
   map.on('mouseup', stopDraw);
-
   map.on('touchstart', startDraw, { passive: false });
   map.on('touchmove', continueDraw, { passive: false });
   map.on('touchend', stopDraw);
 
-  function undoLast() {
-    if (!points.length) return;
-    points.splice(Math.max(0, points.length - 20), 20);
-    if (polyline) polyline.setLatLngs(points);
-    if (points.length === 0) {
-      if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
-      if (polyline) { map.removeLayer(polyline); polyline = null; }
-      hint.classList.remove('hidden');
+  function undoStroke() {
+    if (!strokes.length) return;
+    strokes.pop();
+    const line = snappedLines.pop();
+    if (line) map.removeLayer(line);
+    if (strokes.length === 0 && startMarker) {
+      map.removeLayer(startMarker);
+      startMarker = null;
+      showHint('Switch to Route to start drawing', 0);
     }
     updateDistance();
   }
 
   function clearRoute() {
-    points = [];
-    if (polyline) { map.removeLayer(polyline); polyline = null; }
+    strokes = [];
+    snappedLines.forEach(l => map.removeLayer(l));
+    snappedLines = [];
+    if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
     if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
-    hint.classList.remove('hidden');
+    showHint('Switch to Route to start drawing', 0);
     updateDistance();
   }
 
