@@ -14,7 +14,7 @@
       position: fixed;
       top: 0; left: 0; right: 0;
       height: 56px;
-      background: #1a1a1a;
+      background: #0d0d0d;
       color: #f5f3ef;
       display: flex;
       align-items: center;
@@ -163,7 +163,7 @@
 <script>
   const map = L.map('map', { zoomControl: true }).setView([45.5231, -122.6765], 13);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
     maxZoom: 19
   }).addTo(map);
