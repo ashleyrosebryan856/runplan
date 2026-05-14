@@ -124,20 +124,58 @@
     .hint.hidden { opacity: 0; }
 
     .mile-label {
+      display: inline-block;
       background: var(--ink); color: var(--cream); font-family: var(--sans);
       font-size: 10px; font-weight: 400; letter-spacing: 0.06em;
-      padding: 3px 8px; border-radius: 10px; border: 2px solid var(--cream);
+      padding: 4px 10px; border-radius: 10px; border: 2px solid var(--cream);
       white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     }
     .start-label {
+      display: inline-block;
       background: var(--green); color: #fff; font-family: var(--sans);
       font-size: 10px; font-weight: 400; letter-spacing: 0.1em;
-      padding: 3px 10px; border-radius: 10px; text-transform: uppercase;
+      padding: 4px 12px; border-radius: 10px; text-transform: uppercase;
       border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     }
 
+
+    .style-section { padding: 16px 28px; border-bottom: 1px solid var(--rule); }
+    .style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .style-btn {
+      background: transparent; border: 1px solid var(--rule);
+      color: var(--ink-mid); padding: 8px 4px; font-family: var(--sans);
+      font-weight: 300; font-size: 9px; letter-spacing: 0.1em;
+      text-transform: uppercase; cursor: pointer; border-radius: 2px;
+      transition: all 0.2s; text-align: center; line-height: 1.4;
+    }
+    .style-btn:hover { border-color: var(--ink-mid); color: var(--ink); }
+    .style-btn.active { background: var(--ink); border-color: var(--ink); color: var(--cream); }
     .leaflet-control-zoom { border: 1px solid var(--rule) !important; border-radius: 2px !important; box-shadow: none !important; }
+
+    .style-section { padding: 16px 28px; border-bottom: 1px solid var(--rule); }
+    .style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .style-btn {
+      background: transparent; border: 1px solid var(--rule);
+      color: var(--ink-mid); padding: 8px 4px; font-family: var(--sans);
+      font-weight: 300; font-size: 9px; letter-spacing: 0.1em;
+      text-transform: uppercase; cursor: pointer; border-radius: 2px;
+      transition: all 0.2s; text-align: center; line-height: 1.4;
+    }
+    .style-btn:hover { border-color: var(--ink-mid); color: var(--ink); }
+    .style-btn.active { background: var(--ink); border-color: var(--ink); color: var(--cream); }
     .leaflet-control-zoom a { background: var(--cream) !important; color: var(--ink-mid) !important; border-bottom: 1px solid var(--rule) !important; font-weight: 300 !important; }
+
+    .style-section { padding: 16px 28px; border-bottom: 1px solid var(--rule); }
+    .style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .style-btn {
+      background: transparent; border: 1px solid var(--rule);
+      color: var(--ink-mid); padding: 8px 4px; font-family: var(--sans);
+      font-weight: 300; font-size: 9px; letter-spacing: 0.1em;
+      text-transform: uppercase; cursor: pointer; border-radius: 2px;
+      transition: all 0.2s; text-align: center; line-height: 1.4;
+    }
+    .style-btn:hover { border-color: var(--ink-mid); color: var(--ink); }
+    .style-btn.active { background: var(--ink); border-color: var(--ink); color: var(--cream); }
     .leaflet-control-zoom a:hover { color: var(--ink) !important; }
     .leaflet-control-attribution { display: none; }
   </style>
@@ -167,6 +205,11 @@
     </div>
   </div>
 
+
+  <div class="style-section">
+    <div class="section-label">Map Style</div>
+    <div class="style-grid" id="style-grid"></div>
+  </div>
   <div class="actions-section">
     <div class="section-label">Actions</div>
     <button class="btn btn-primary" onclick="openSave()">Save Route</button>
@@ -279,7 +322,7 @@
           icon: L.divIcon({
             className: '',
             html: `<div class="mile-label">${mileCount} mi</div>`,
-            iconAnchor: [20, 10]
+            iconAnchor: [0, 10]
           }),
           interactive: false
         }).addTo(map));
@@ -303,7 +346,7 @@
     if (!latlng) return;
     if (strokes.flat().length === 0 && !startMarker) {
       startMarker = L.marker(latlng, {
-        icon: L.divIcon({ className: '', html: '<div class="start-label">Start</div>', iconAnchor: [26, 12] }),
+        icon: L.divIcon({ className: '', html: '<div class="start-label">Start</div>', iconAnchor: [0, 12] }),
         interactive: false
       }).addTo(map);
     }
@@ -450,7 +493,40 @@
     document.getElementById('save-name').value = '';
     document.getElementById('save-notes').value = '';
     document.getElementById('modal-overlay').classList.remove('open');
-    renderSavedRoutes();
+  
+  // ── Map styles ─────────────────────────────────────────────
+  const mapStyles = [
+    { id: 'default',     label: 'Default',    filter: 'none' },
+    { id: 'warm',        label: 'Warm',       filter: 'sepia(0.3) saturate(0.8) brightness(1.02)' },
+    { id: 'cool',        label: 'Cool',       filter: 'saturate(0.5) hue-rotate(20deg) brightness(1.03)' },
+    { id: 'mist',        label: 'Mist',       filter: 'saturate(0.15) brightness(1.08) contrast(0.9)' },
+    { id: 'dusk',        label: 'Dusk',       filter: 'sepia(0.5) saturate(0.6) brightness(0.88) contrast(1.1)' },
+    { id: 'blueprint',   label: 'Blueprint',  filter: 'saturate(0.2) hue-rotate(180deg) brightness(1.05)' },
+  ];
+
+  let activeStyle = 'default';
+
+  function applyStyle(id) {
+    const style = mapStyles.find(s => s.id === id);
+    if (!style) return;
+    activeStyle = id;
+    document.querySelectorAll('.leaflet-tile-pane').forEach(el => {
+      el.style.filter = style.filter;
+    });
+    document.querySelectorAll('.style-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.style === id);
+    });
+  }
+
+  function renderStyleGrid() {
+    const grid = document.getElementById('style-grid');
+    grid.innerHTML = mapStyles.map(s => 
+      `<button class="style-btn${s.id === activeStyle ? ' active' : ''}" data-style="${s.id}" onclick="applyStyle('${s.id}')">${s.label}</button>`
+    ).join('');
+  }
+
+  renderSavedRoutes();
+  renderStyleGrid();
     showHint(`"${name}" saved`, 2500);
   }
 
@@ -483,7 +559,7 @@
       snappedLines.push(L.polyline(pts, { color: '#b84a3a', weight: 3.5, opacity: 0.85 }).addTo(map));
       if (!startMarker && pts.length) {
         startMarker = L.marker(pts[0], {
-          icon: L.divIcon({ className: '', html: '<div class="start-label">Start</div>', iconAnchor: [26, 12] }),
+          icon: L.divIcon({ className: '', html: '<div class="start-label">Start</div>', iconAnchor: [0, 12] }),
           interactive: false
         }).addTo(map);
       }
@@ -496,7 +572,40 @@
   function deleteRoute(id) {
     const saved = getSaved().filter(r => r.id !== id);
     localStorage.setItem('runplan_routes', JSON.stringify(saved));
-    renderSavedRoutes();
+  
+  // ── Map styles ─────────────────────────────────────────────
+  const mapStyles = [
+    { id: 'default',     label: 'Default',    filter: 'none' },
+    { id: 'warm',        label: 'Warm',       filter: 'sepia(0.3) saturate(0.8) brightness(1.02)' },
+    { id: 'cool',        label: 'Cool',       filter: 'saturate(0.5) hue-rotate(20deg) brightness(1.03)' },
+    { id: 'mist',        label: 'Mist',       filter: 'saturate(0.15) brightness(1.08) contrast(0.9)' },
+    { id: 'dusk',        label: 'Dusk',       filter: 'sepia(0.5) saturate(0.6) brightness(0.88) contrast(1.1)' },
+    { id: 'blueprint',   label: 'Blueprint',  filter: 'saturate(0.2) hue-rotate(180deg) brightness(1.05)' },
+  ];
+
+  let activeStyle = 'default';
+
+  function applyStyle(id) {
+    const style = mapStyles.find(s => s.id === id);
+    if (!style) return;
+    activeStyle = id;
+    document.querySelectorAll('.leaflet-tile-pane').forEach(el => {
+      el.style.filter = style.filter;
+    });
+    document.querySelectorAll('.style-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.style === id);
+    });
+  }
+
+  function renderStyleGrid() {
+    const grid = document.getElementById('style-grid');
+    grid.innerHTML = mapStyles.map(s => 
+      `<button class="style-btn${s.id === activeStyle ? ' active' : ''}" data-style="${s.id}" onclick="applyStyle('${s.id}')">${s.label}</button>`
+    ).join('');
+  }
+
+  renderSavedRoutes();
+  renderStyleGrid();
   }
 
   function locateMe() { map.locate({ setView: true, maxZoom: 15 }); }
@@ -511,7 +620,40 @@
   });
 
   map.on('locationerror', () => showHint('Location unavailable', 2000));
+
+  // ── Map styles ─────────────────────────────────────────────
+  const mapStyles = [
+    { id: 'default',     label: 'Default',    filter: 'none' },
+    { id: 'warm',        label: 'Warm',       filter: 'sepia(0.3) saturate(0.8) brightness(1.02)' },
+    { id: 'cool',        label: 'Cool',       filter: 'saturate(0.5) hue-rotate(20deg) brightness(1.03)' },
+    { id: 'mist',        label: 'Mist',       filter: 'saturate(0.15) brightness(1.08) contrast(0.9)' },
+    { id: 'dusk',        label: 'Dusk',       filter: 'sepia(0.5) saturate(0.6) brightness(0.88) contrast(1.1)' },
+    { id: 'blueprint',   label: 'Blueprint',  filter: 'saturate(0.2) hue-rotate(180deg) brightness(1.05)' },
+  ];
+
+  let activeStyle = 'default';
+
+  function applyStyle(id) {
+    const style = mapStyles.find(s => s.id === id);
+    if (!style) return;
+    activeStyle = id;
+    document.querySelectorAll('.leaflet-tile-pane').forEach(el => {
+      el.style.filter = style.filter;
+    });
+    document.querySelectorAll('.style-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.style === id);
+    });
+  }
+
+  function renderStyleGrid() {
+    const grid = document.getElementById('style-grid');
+    grid.innerHTML = mapStyles.map(s => 
+      `<button class="style-btn${s.id === activeStyle ? ' active' : ''}" data-style="${s.id}" onclick="applyStyle('${s.id}')">${s.label}</button>`
+    ).join('');
+  }
+
   renderSavedRoutes();
+  renderStyleGrid();
 </script>
 </body>
 </html>
