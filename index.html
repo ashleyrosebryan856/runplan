@@ -1,6 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RUNPLAN</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Georgia, serif; background: #f5f3ef; }
+
+    header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 56px;
+      background: #1a1a1a;
+      color: #f5f3ef;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 1000;
+    }
+
+    header h1 {
+      font-size: 17px;
+      font-weight: normal;
+      letter-spacing: 0.1em;
+    }
+
+    .controls { display: flex; align-items: center; gap: 8px; }
+
+    .dist {
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+      padding-right: 14px;
+      margin-right: 6px;
+      border-right: 1px solid rgba(255,255,255,0.2);
+    }
+
+    .dist-mi { font-size: 24px; color: #f5f3ef; }
+    .dist-unit { font-size: 11px; color: rgba(255,255,255,0.5); letter-spacing: 0.05em; }
+    .dist-km { font-size: 13px; color: rgba(255,255,255,0.4); }
+
+    button {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #f5f3ef;
+      padding: 6px 14px;
+      font-size: 11px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+    button:hover { background: rgba(255,255,255,0.1); }
+
+    #map {
+      position: fixed;
+      top: 56px;
+      left: 0; right: 0; bottom: 0;
+    }
+
+    .hint {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(20,20,20,0.8);
+      color: rgba(255,255,255,0.9);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      padding: 8px 20px;
+      border-radius: 20px;
+      pointer-events: none;
+      z-index: 1000;
+      white-space: nowrap;
+      transition: opacity 0.4s;
+    }
+    .hint.hidden { opacity: 0; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>RUNPLAN</h1>
+  <div class="controls">
+    <div class="dist">
+      <span class="dist-mi" id="dist-mi">0.00</span>
+      <span class="dist-unit">mi</span>
+      <span class="dist-km" id="dist-km">· 0.00 km</span>
+    </div>
+    <button onclick="undoLast()">Undo</button>
+    <button onclick="clearRoute()">Clear</button>
+    <button onclick="locateMe()" title="My location">⊕</button>
+  </div>
+</header>
+
+<div id="map"></div>
+<div class="hint" id="hint">Click the map to start plotting your route</div>
+
+<script>
+  const map = L.map('map').setView([45.5231, -122.6765], 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 19
+  }).addTo(map);
+
+  let points = [], markers = [], polyline = null;
+  const hint = document.getElementById('hint');
+
+  const makeIcon = (color, size) => L.divIcon({
+    className: '',
+    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.4);"></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2]
+  });
+
+  function haversine(a, b) {
+    const R = 6371000, r = x => x * Math.PI / 180;
+    const dLat = r(b.lat - a.lat), dLon = r(b.lng - a.lng);
+    const s = Math.sin(dLat/2)**2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+  }
+
+  function updateDistance() {
+    let d = 0;
+    for (let i = 1; i < points.length; i++) d += haversine(points[i-1], points[i]);
+    document.getElementById('dist-mi').textContent = (d / 1609.344).toFixed(2);
+    document.getElementById('dist-km').textContent = '· ' + (d / 1000).toFixed(2) + ' km';
+  }
+
+  function redraw() {
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
+    points.forEach((p, i) => {
+      const icon = i === 0 ? makeIcon('#2d8a5e', 14) : makeIcon('#c0392b', 10);
+      markers.push(L.marker(p, { icon, interactive: false }).addTo(map));
+    });
+    if (polyline) map.removeLayer(polyline);
+    if (points.length > 1)
+      polyline = L.polyline(points, { color: '#c0392b', weight: 3.5, opacity: 0.85 }).addTo(map);
+    updateDistance();
+  }
+
+  map.on('click', e => {
+    points.push(e.latlng);
+    hint.classList.add('hidden');
+    redraw();
+  });
+
+  function undoLast() {
     if (!points.length) return;
     points.pop();
-    if (points.length === 0) hint.classList.remove('hidden');
+    if (!points.length) hint.classList.remove('hidden');
     redraw();
   }
 
@@ -15,7 +170,7 @@
   }
 
   map.on('locationfound', e => map.setView(e.latlng, 15));
-  map.on('locationerror', () => alert('Could not get your location. Please allow location access in your browser.'));
+  map.on('locationerror', () => alert('Location access denied or unavailable.'));
 </script>
 </body>
 </html>
