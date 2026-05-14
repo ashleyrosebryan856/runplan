@@ -8,7 +8,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Georgia, serif; background: #f5f3ef; }
+    body { font-family: Georgia, serif; background: #0d0d0d; color: #f5f3ef; }
 
     header {
       position: fixed;
@@ -21,6 +21,7 @@
       justify-content: space-between;
       padding: 0 20px;
       z-index: 1000;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
     }
 
     header h1 {
@@ -37,27 +38,26 @@
       gap: 5px;
       padding-right: 14px;
       margin-right: 6px;
-      border-right: 1px solid rgba(255,255,255,0.2);
+      border-right: 1px solid rgba(255,255,255,0.15);
     }
 
     .dist-mi { font-size: 24px; color: #f5f3ef; }
-    .dist-unit { font-size: 11px; color: rgba(255,255,255,0.5); letter-spacing: 0.05em; }
-    .dist-km { font-size: 13px; color: rgba(255,255,255,0.4); }
+    .dist-unit { font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 0.05em; }
+    .dist-km { font-size: 13px; color: rgba(255,255,255,0.3); }
 
     .mode-toggle {
       display: flex;
-      border: 1px solid rgba(255,255,255,0.3);
+      border: 1px solid rgba(255,255,255,0.2);
       border-radius: 3px;
       overflow: hidden;
-      margin-right: 4px;
     }
 
     .mode-toggle button {
       background: transparent;
       border: none;
       border-radius: 0;
-      color: rgba(255,255,255,0.5);
-      padding: 6px 16px;
+      color: rgba(255,255,255,0.4);
+      padding: 6px 14px;
       font-size: 11px;
       letter-spacing: 0.07em;
       text-transform: uppercase;
@@ -65,33 +65,28 @@
       transition: background 0.15s, color 0.15s;
     }
 
-    .mode-toggle button:first-child {
-      border-right: 1px solid rgba(255,255,255,0.3);
-    }
-
-    .mode-toggle button.active {
-      background: #f5f3ef;
-      color: #1a1a1a;
-    }
-
-    .mode-toggle button:not(.active):hover {
-      background: rgba(255,255,255,0.1);
-      color: rgba(255,255,255,0.8);
-    }
+    .mode-toggle button:first-child { border-right: 1px solid rgba(255,255,255,0.2); }
+    .mode-toggle button.active { background: #f5f3ef; color: #0d0d0d; }
+    .mode-toggle button:not(.active):hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.8); }
 
     button.action {
       background: transparent;
-      border: 1px solid rgba(255,255,255,0.3);
-      color: #f5f3ef;
-      padding: 6px 14px;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.7);
+      padding: 6px 12px;
       font-size: 11px;
-      letter-spacing: 0.07em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       cursor: pointer;
       border-radius: 3px;
-      transition: background 0.15s;
+      transition: background 0.15s, color 0.15s;
     }
-    button.action:hover { background: rgba(255,255,255,0.1); }
+    button.action:hover { background: rgba(255,255,255,0.08); color: #f5f3ef; }
+    button.action.highlight {
+      border-color: #c0392b;
+      color: #c0392b;
+    }
+    button.action.highlight:hover { background: rgba(192,57,43,0.12); }
 
     #map {
       position: fixed;
@@ -100,13 +95,176 @@
     }
     #map.route-mode { cursor: crosshair; }
 
+    /* Side panel */
+    .panel {
+      position: fixed;
+      top: 56px;
+      right: 0;
+      width: 320px;
+      height: calc(100vh - 56px);
+      background: #111;
+      border-left: 1px solid rgba(255,255,255,0.08);
+      z-index: 900;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+    }
+    .panel.open { transform: translateX(0); }
+
+    .panel-header {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .panel-header h2 {
+      font-size: 13px;
+      font-weight: normal;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+    }
+
+    .panel-close {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.4);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 0;
+      line-height: 1;
+    }
+    .panel-close:hover { color: #f5f3ef; }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+    }
+
+    .panel-body label {
+      display: block;
+      font-size: 11px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 6px;
+      margin-top: 14px;
+    }
+    .panel-body label:first-child { margin-top: 0; }
+
+    .panel-body input, .panel-body textarea, .panel-body select {
+      width: 100%;
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.12);
+      color: #f5f3ef;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-family: Georgia, serif;
+      border-radius: 3px;
+      outline: none;
+    }
+    .panel-body input:focus, .panel-body textarea:focus {
+      border-color: rgba(255,255,255,0.3);
+    }
+    .panel-body textarea { resize: vertical; min-height: 80px; }
+
+    .panel-btn {
+      width: 100%;
+      margin-top: 14px;
+      padding: 10px;
+      background: #c0392b;
+      border: none;
+      color: #fff;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 3px;
+      font-family: Georgia, serif;
+      transition: background 0.15s;
+    }
+    .panel-btn:hover { background: #a93226; }
+    .panel-btn:disabled { background: #444; cursor: not-allowed; }
+
+    .panel-btn.secondary {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.6);
+      margin-top: 8px;
+    }
+    .panel-btn.secondary:hover { background: rgba(255,255,255,0.06); color: #f5f3ef; }
+
+    /* Saved route items */
+    .route-item {
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      cursor: pointer;
+    }
+    .route-item:last-child { border-bottom: none; }
+    .route-item:hover .route-name { color: #c0392b; }
+
+    .route-name {
+      font-size: 14px;
+      color: #f5f3ef;
+      transition: color 0.15s;
+    }
+    .route-meta {
+      font-size: 11px;
+      color: rgba(255,255,255,0.35);
+      margin-top: 3px;
+      letter-spacing: 0.03em;
+    }
+    .route-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .route-actions button {
+      font-size: 10px;
+      padding: 3px 10px;
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.5);
+      cursor: pointer;
+      border-radius: 2px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .route-actions button:hover { color: #f5f3ef; border-color: rgba(255,255,255,0.4); }
+    .route-actions button.del:hover { color: #c0392b; border-color: #c0392b; }
+
+    /* AI response */
+    .ai-response {
+      margin-top: 14px;
+      padding: 12px;
+      background: #1a1a1a;
+      border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.08);
+      font-size: 13px;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.75);
+      display: none;
+    }
+    .ai-response.visible { display: block; }
+
+    .ai-thinking {
+      color: rgba(255,255,255,0.35);
+      font-style: italic;
+      font-size: 12px;
+    }
+
+    /* Hint */
     .hint {
       position: fixed;
       bottom: 24px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(20,20,20,0.85);
-      color: rgba(255,255,255,0.95);
+      background: rgba(10,10,10,0.9);
+      color: rgba(255,255,255,0.85);
       font-size: 12px;
       letter-spacing: 0.04em;
       padding: 8px 20px;
@@ -118,20 +276,29 @@
     }
     .hint.hidden { opacity: 0; }
 
-    .snapping-indicator {
+    .snap-indicator {
       position: fixed;
       top: 68px;
-      right: 16px;
-      background: rgba(20,20,20,0.8);
-      color: rgba(255,255,255,0.85);
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10,10,10,0.9);
+      color: rgba(255,255,255,0.7);
       font-size: 11px;
       letter-spacing: 0.05em;
-      padding: 5px 12px;
+      padding: 5px 14px;
       border-radius: 12px;
       z-index: 1000;
       display: none;
     }
-    .snapping-indicator.visible { display: block; }
+    .snap-indicator.visible { display: block; }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 0;
+      color: rgba(255,255,255,0.25);
+      font-size: 13px;
+      line-height: 1.8;
+    }
   </style>
 </head>
 <body>
@@ -152,38 +319,84 @@
 
     <button class="action" onclick="undoStroke()">Undo</button>
     <button class="action" onclick="clearRoute()">Clear</button>
+    <button class="action highlight" onclick="openPanel('save')">Save</button>
+    <button class="action" onclick="openPanel('saved')">Routes</button>
+    <button class="action" onclick="openPanel('ai')">AI</button>
     <button class="action" onclick="locateMe()">⊕</button>
   </div>
 </header>
 
 <div id="map"></div>
 <div class="hint" id="hint">Switch to Route to start drawing</div>
-<div class="snapping-indicator" id="snap-indicator">Snapping to roads…</div>
+<div class="snap-indicator" id="snap-indicator">Snapping to roads…</div>
+
+<!-- Save Panel -->
+<div class="panel" id="panel-save">
+  <div class="panel-header">
+    <h2>Save Route</h2>
+    <button class="panel-close" onclick="closePanel()">×</button>
+  </div>
+  <div class="panel-body">
+    <label>Route Name</label>
+    <input type="text" id="save-name" placeholder="e.g. Morning loop" />
+    <label>Date</label>
+    <input type="date" id="save-date" />
+    <label>Notes (optional)</label>
+    <textarea id="save-notes" placeholder="How did it feel? Any landmarks?"></textarea>
+    <button class="panel-btn" onclick="saveRoute()">Save Route</button>
+  </div>
+</div>
+
+<!-- Saved Routes Panel -->
+<div class="panel" id="panel-saved">
+  <div class="panel-header">
+    <h2>Saved Routes</h2>
+    <button class="panel-close" onclick="closePanel()">×</button>
+  </div>
+  <div class="panel-body" id="saved-list">
+    <div class="empty-state">No saved routes yet.<br>Draw a route and tap Save.</div>
+  </div>
+</div>
+
+<!-- AI Panel -->
+<div class="panel" id="panel-ai">
+  <div class="panel-header">
+    <h2>AI Route</h2>
+    <button class="panel-close" onclick="closePanel()">×</button>
+  </div>
+  <div class="panel-body">
+    <label>Distance</label>
+    <input type="text" id="ai-distance" placeholder="e.g. 4 miles" />
+    <label>Starting point (or use my location)</label>
+    <input type="text" id="ai-start" placeholder="e.g. Laurelhurst Park, Portland" />
+    <label>Preferences</label>
+    <textarea id="ai-prefs" placeholder="e.g. moderate hills, parks, avoid busy roads, a bathroom stop, loop route…"></textarea>
+    <button class="panel-btn" id="ai-btn" onclick="getAIRoute()">Design My Route</button>
+    <button class="panel-btn secondary" id="ai-retry" onclick="getAIRoute()" style="display:none">Try a Different Route</button>
+    <div class="ai-response" id="ai-response"></div>
+  </div>
+</div>
 
 <script>
+  // ── Map setup ──────────────────────────────────────────────
   const map = L.map('map', { zoomControl: true }).setView([45.5231, -122.6765], 13);
-
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
     maxZoom: 19
   }).addTo(map);
 
-  // strokes: each stroke is an array of snapped latlngs
-  // currentStroke: raw freehand points for the stroke in progress
-  let strokes = [];
-  let currentStroke = [];
-  let drawing = false;
-  let mode = 'map';
-
-  let previewLine = null;   // thin red freehand preview while drawing
-  let snappedLines = [];    // one polyline per completed snapped stroke
-  let startMarker = null;
+  // ── State ──────────────────────────────────────────────────
+  let strokes = [], snappedLines = [], startMarker = null;
+  let currentStroke = [], previewLine = null;
+  let drawing = false, mode = 'map';
+  let activePanel = null;
 
   const hint = document.getElementById('hint');
   const snapIndicator = document.getElementById('snap-indicator');
   const mapEl = document.getElementById('map');
   const MIN_DIST = 10;
 
+  // ── Hint ───────────────────────────────────────────────────
   let hintTimer = null;
   function showHint(msg, duration) {
     clearTimeout(hintTimer);
@@ -192,76 +405,41 @@
     if (duration) hintTimer = setTimeout(() => hint.classList.add('hidden'), duration);
   }
 
+  // ── Mode toggle ────────────────────────────────────────────
   function setMode(m) {
     mode = m;
     document.getElementById('btn-map').classList.toggle('active', m === 'map');
     document.getElementById('btn-route').classList.toggle('active', m === 'route');
     mapEl.classList.toggle('route-mode', m === 'route');
-
     if (m === 'map') {
-      map.dragging.enable();
-      map.scrollWheelZoom.enable();
-      map.doubleClickZoom.enable();
-      map.touchZoom.enable();
+      map.dragging.enable(); map.scrollWheelZoom.enable();
+      map.doubleClickZoom.enable(); map.touchZoom.enable();
       showHint('Map mode — pan and zoom freely', 2000);
     } else {
-      map.dragging.disable();
-      map.scrollWheelZoom.disable();
-      map.doubleClickZoom.disable();
-      map.touchZoom.disable();
-      showHint('Route mode — draw freely, snaps to roads on release', 3000);
+      map.dragging.disable(); map.scrollWheelZoom.disable();
+      map.doubleClickZoom.disable(); map.touchZoom.disable();
+      showHint('Route mode — hold and drag to draw', 2500);
     }
   }
 
-  // Douglas-Peucker simplification to reduce waypoints sent to OSRM
-  function perpDist(pt, lineStart, lineEnd) {
-    const dx = lineEnd.lng - lineStart.lng;
-    const dy = lineEnd.lat - lineStart.lat;
-    const len2 = dx*dx + dy*dy;
-    if (len2 === 0) {
-      const ddx = pt.lng - lineStart.lng, ddy = pt.lat - lineStart.lat;
-      return Math.sqrt(ddx*ddx + ddy*ddy);
+  // ── Panels ─────────────────────────────────────────────────
+  function openPanel(name) {
+    if (activePanel) document.getElementById('panel-' + activePanel).classList.remove('open');
+    if (activePanel === name) { activePanel = null; return; }
+    activePanel = name;
+    if (name === 'save') {
+      document.getElementById('save-date').value = new Date().toISOString().split('T')[0];
     }
-    const t = Math.max(0, Math.min(1, ((pt.lng - lineStart.lng)*dx + (pt.lat - lineStart.lat)*dy) / len2));
-    const projx = lineStart.lng + t*dx, projy = lineStart.lat + t*dy;
-    const ex = pt.lng - projx, ey = pt.lat - projy;
-    return Math.sqrt(ex*ex + ey*ey);
+    if (name === 'saved') renderSavedRoutes();
+    document.getElementById('panel-' + name).classList.add('open');
   }
 
-  function simplify(pts, tolerance) {
-    if (pts.length <= 2) return pts;
-    let maxDist = 0, maxIdx = 0;
-    for (let i = 1; i < pts.length - 1; i++) {
-      const d = perpDist(pts[i], pts[0], pts[pts.length-1]);
-      if (d > maxDist) { maxDist = d; maxIdx = i; }
-    }
-    if (maxDist > tolerance) {
-      const left = simplify(pts.slice(0, maxIdx+1), tolerance);
-      const right = simplify(pts.slice(maxIdx), tolerance);
-      return left.slice(0, -1).concat(right);
-    }
-    return [pts[0], pts[pts.length-1]];
+  function closePanel() {
+    if (activePanel) document.getElementById('panel-' + activePanel).classList.remove('open');
+    activePanel = null;
   }
 
-  async function snapToRoads(rawPoints) {
-    // Simplify to max 25 waypoints for OSRM
-    const simplified = simplify(rawPoints, 0.00015);
-    const capped = simplified.length > 25
-      ? simplified.filter((_, i) => i % Math.ceil(simplified.length/25) === 0 || i === simplified.length-1)
-      : simplified;
-
-    const coords = capped.map(p => `${p.lng},${p.lat}`).join(';');
-    const url = `https://router.project-osrm.org/route/v1/foot/${coords}?overview=full&geometries=geojson`;
-
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (data.code !== 'Ok' || !data.routes || !data.routes[0]) return null;
-
-    const coords2 = data.routes[0].geometry.coordinates;
-    return coords2.map(([lng, lat]) => ({ lat, lng }));
-  }
-
+  // ── Distance ───────────────────────────────────────────────
   function haversine(a, b) {
     const R = 6371000, r = x => x * Math.PI / 180;
     const dLat = r(b.lat - a.lat), dLon = r(b.lng - a.lng);
@@ -271,9 +449,7 @@
 
   function totalDistance() {
     let d = 0;
-    for (const stroke of strokes) {
-      for (let i = 1; i < stroke.length; i++) d += haversine(stroke[i-1], stroke[i]);
-    }
+    for (const stroke of strokes) for (let i = 1; i < stroke.length; i++) d += haversine(stroke[i-1], stroke[i]);
     return d;
   }
 
@@ -283,11 +459,10 @@
     document.getElementById('dist-km').textContent = '· ' + (d / 1000).toFixed(2) + ' km';
   }
 
+  // ── Freehand drawing ───────────────────────────────────────
   function getLatLng(e) {
     if (e.latlng) return e.latlng;
-    if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches[0]) {
-      return map.mouseEventToLatLng(e.originalEvent.touches[0]);
-    }
+    if (e.originalEvent?.touches?.[0]) return map.mouseEventToLatLng(e.originalEvent.touches[0]);
     return null;
   }
 
@@ -297,22 +472,14 @@
     hint.classList.add('hidden');
     const latlng = getLatLng(e);
     if (!latlng) return;
-
-    // Place start marker if first ever point
-    const allPoints = strokes.flat();
-    if (allPoints.length === 0 && !startMarker) {
+    if (strokes.flat().length === 0 && !startMarker) {
       startMarker = L.circleMarker(latlng, {
-        radius: 6, color: '#fff', weight: 2.5,
-        fillColor: '#2d8a5e', fillOpacity: 1
+        radius: 6, color: '#fff', weight: 2.5, fillColor: '#2d8a5e', fillOpacity: 1
       }).addTo(map);
     }
-
     currentStroke = [latlng];
-
     if (previewLine) map.removeLayer(previewLine);
-    previewLine = L.polyline(currentStroke, {
-      color: '#c0392b', weight: 2.5, opacity: 0.5, dashArray: '6,4'
-    }).addTo(map);
+    previewLine = L.polyline(currentStroke, { color: '#c0392b', weight: 2.5, opacity: 0.5, dashArray: '6,4' }).addTo(map);
   }
 
   function continueDraw(e) {
@@ -333,33 +500,18 @@
       currentStroke = [];
       return;
     }
-
-    // Show snapping indicator
     snapIndicator.classList.add('visible');
-
     try {
       const snapped = await snapToRoads(currentStroke);
-
       if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
-
-      if (snapped && snapped.length > 1) {
-        strokes.push(snapped);
-        const line = L.polyline(snapped, { color: '#c0392b', weight: 4, opacity: 0.9 }).addTo(map);
-        snappedLines.push(line);
-      } else {
-        // Fallback: use raw freehand if OSRM fails
-        strokes.push(currentStroke);
-        const line = L.polyline(currentStroke, { color: '#c0392b', weight: 4, opacity: 0.9 }).addTo(map);
-        snappedLines.push(line);
-      }
-    } catch (err) {
-      // Fallback on network error
+      const pts = (snapped && snapped.length > 1) ? snapped : currentStroke;
+      strokes.push(pts);
+      snappedLines.push(L.polyline(pts, { color: '#c0392b', weight: 4, opacity: 0.9 }).addTo(map));
+    } catch {
       if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
       strokes.push(currentStroke);
-      const line = L.polyline(currentStroke, { color: '#c0392b', weight: 4, opacity: 0.9 }).addTo(map);
-      snappedLines.push(line);
+      snappedLines.push(L.polyline(currentStroke, { color: '#c0392b', weight: 4, opacity: 0.9 }).addTo(map));
     }
-
     snapIndicator.classList.remove('visible');
     currentStroke = [];
     updateDistance();
@@ -372,14 +524,47 @@
   map.on('touchmove', continueDraw, { passive: false });
   map.on('touchend', stopDraw);
 
+  // ── Road snapping ──────────────────────────────────────────
+  function simplify(pts, tol) {
+    if (pts.length <= 2) return pts;
+    let maxD = 0, maxI = 0;
+    for (let i = 1; i < pts.length - 1; i++) {
+      const d = perpDist(pts[i], pts[0], pts[pts.length-1]);
+      if (d > maxD) { maxD = d; maxI = i; }
+    }
+    if (maxD > tol) {
+      return simplify(pts.slice(0, maxI+1), tol).slice(0,-1).concat(simplify(pts.slice(maxI), tol));
+    }
+    return [pts[0], pts[pts.length-1]];
+  }
+
+  function perpDist(pt, a, b) {
+    const dx = b.lng-a.lng, dy = b.lat-a.lat, len2 = dx*dx+dy*dy;
+    if (len2 === 0) return Math.hypot(pt.lng-a.lng, pt.lat-a.lat);
+    const t = Math.max(0, Math.min(1, ((pt.lng-a.lng)*dx+(pt.lat-a.lat)*dy)/len2));
+    return Math.hypot(pt.lng-(a.lng+t*dx), pt.lat-(a.lat+t*dy));
+  }
+
+  async function snapToRoads(rawPts) {
+    let simplified = simplify(rawPts, 0.00015);
+    if (simplified.length > 25) {
+      simplified = simplified.filter((_,i) => i % Math.ceil(simplified.length/25) === 0 || i === simplified.length-1);
+    }
+    const coords = simplified.map(p => `${p.lng},${p.lat}`).join(';');
+    const res = await fetch(`https://router.project-osrm.org/route/v1/foot/${coords}?overview=full&geometries=geojson`);
+    const data = await res.json();
+    if (data.code !== 'Ok' || !data.routes?.[0]) return null;
+    return data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng }));
+  }
+
+  // ── Undo / Clear ───────────────────────────────────────────
   function undoStroke() {
     if (!strokes.length) return;
     strokes.pop();
     const line = snappedLines.pop();
     if (line) map.removeLayer(line);
     if (strokes.length === 0 && startMarker) {
-      map.removeLayer(startMarker);
-      startMarker = null;
+      map.removeLayer(startMarker); startMarker = null;
       showHint('Switch to Route to start drawing', 0);
     }
     updateDistance();
@@ -387,18 +572,188 @@
 
   function clearRoute() {
     strokes = [];
-    snappedLines.forEach(l => map.removeLayer(l));
-    snappedLines = [];
+    snappedLines.forEach(l => map.removeLayer(l)); snappedLines = [];
     if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
     if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
     showHint('Switch to Route to start drawing', 0);
     updateDistance();
   }
 
+  // ── Save route ─────────────────────────────────────────────
+  function saveRoute() {
+    const name = document.getElementById('save-name').value.trim();
+    if (!name) { alert('Please give your route a name.'); return; }
+    if (strokes.length === 0) { alert('No route to save. Draw a route first.'); return; }
+
+    const route = {
+      id: Date.now(),
+      name,
+      date: document.getElementById('save-date').value,
+      notes: document.getElementById('save-notes').value.trim(),
+      distanceMi: (totalDistance() / 1609.344).toFixed(2),
+      strokes: strokes.map(s => s.map(p => [p.lat, p.lng]))
+    };
+
+    const saved = getSaved();
+    saved.unshift(route);
+    localStorage.setItem('runplan_routes', JSON.stringify(saved));
+
+    document.getElementById('save-name').value = '';
+    document.getElementById('save-notes').value = '';
+    closePanel();
+    showHint(`"${name}" saved!`, 2500);
+  }
+
+  function getSaved() {
+    try { return JSON.parse(localStorage.getItem('runplan_routes') || '[]'); } catch { return []; }
+  }
+
+  function renderSavedRoutes() {
+    const saved = getSaved();
+    const el = document.getElementById('saved-list');
+    if (!saved.length) {
+      el.innerHTML = '<div class="empty-state">No saved routes yet.<br>Draw a route and tap Save.</div>';
+      return;
+    }
+    el.innerHTML = saved.map(r => `
+      <div class="route-item">
+        <div class="route-name">${r.name}</div>
+        <div class="route-meta">${r.date ? r.date + ' · ' : ''}${r.distanceMi} mi${r.notes ? ' · ' + r.notes : ''}</div>
+        <div class="route-actions">
+          <button onclick="loadRoute(${r.id})">Load</button>
+          <button class="del" onclick="deleteRoute(${r.id})">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function loadRoute(id) {
+    const saved = getSaved();
+    const route = saved.find(r => r.id === id);
+    if (!route) return;
+    clearRoute();
+    route.strokes.forEach(stroke => {
+      const pts = stroke.map(([lat, lng]) => ({ lat, lng }));
+      strokes.push(pts);
+      snappedLines.push(L.polyline(pts, { color: '#c0392b', weight: 4, opacity: 0.9 }).addTo(map));
+      if (!startMarker && pts.length) {
+        startMarker = L.circleMarker(pts[0], {
+          radius: 6, color: '#fff', weight: 2.5, fillColor: '#2d8a5e', fillOpacity: 1
+        }).addTo(map);
+      }
+    });
+    updateDistance();
+    map.fitBounds(L.polyline(strokes.flat()).getBounds(), { padding: [40, 40] });
+    closePanel();
+    showHint(`Loaded "${route.name}"`, 2000);
+  }
+
+  function deleteRoute(id) {
+    const saved = getSaved().filter(r => r.id !== id);
+    localStorage.setItem('runplan_routes', JSON.stringify(saved));
+    renderSavedRoutes();
+  }
+
+  // ── AI Route ───────────────────────────────────────────────
+  async function getAIRoute() {
+    const distance = document.getElementById('ai-distance').value.trim();
+    const start = document.getElementById('ai-start').value.trim();
+    const prefs = document.getElementById('ai-prefs').value.trim();
+
+    if (!distance) { alert('Please enter a distance.'); return; }
+
+    const btn = document.getElementById('ai-btn');
+    const retryBtn = document.getElementById('ai-retry');
+    const responseEl = document.getElementById('ai-response');
+
+    btn.disabled = true;
+    btn.textContent = 'Designing route…';
+    responseEl.className = 'ai-response visible';
+    responseEl.innerHTML = '<span class="ai-thinking">Thinking about your route…</span>';
+
+    const center = map.getCenter();
+    const locationContext = start || `near coordinates ${center.lat.toFixed(4)}, ${center.lng.toFixed(4)} (Portland, OR area)`;
+
+    const prompt = `You are a running route designer. A runner needs a route with these requirements:
+- Distance: ${distance}
+- Starting point: ${locationContext}
+- Preferences: ${prefs || 'no specific preferences'}
+
+Please design a specific running route. Respond in this exact JSON format and nothing else:
+{
+  "description": "A 2-3 sentence description of the route and why it's good for this runner.",
+  "waypoints": [
+    {"lat": 45.5231, "lng": -122.6765, "name": "Start"},
+    {"lat": 45.5250, "lng": -122.6800, "name": "Waypoint name"},
+    ...more waypoints to complete the route...
+    {"lat": 45.5231, "lng": -122.6765, "name": "Finish"}
+  ],
+  "tips": "One short practical tip for this route."
+}
+
+Use real streets and landmarks. Include 6-12 waypoints that trace the actual route. Make sure the total distance is approximately ${distance}.`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      const data = await res.json();
+      const text = data.content?.map(b => b.text || '').join('') || '';
+      const clean = text.replace(/```json|```/g, '').trim();
+      const route = JSON.parse(clean);
+
+      // Draw the route on the map
+      clearRoute();
+      const pts = route.waypoints.map(w => ({ lat: w.lat, lng: w.lng }));
+
+      if (pts.length > 1) {
+        snapIndicator.classList.add('visible');
+        try {
+          const snapped = await snapToRoads(pts);
+          const finalPts = (snapped && snapped.length > 1) ? snapped : pts;
+          strokes.push(finalPts);
+          snappedLines.push(L.polyline(finalPts, { color: '#c0392b', weight: 4, opacity: 0.9 }).addTo(map));
+        } catch {
+          strokes.push(pts);
+          snappedLines.push(L.polyline(pts, { color: '#c0392b', weight: 4, opacity: 0.9 }).addTo(map));
+        }
+        snapIndicator.classList.remove('visible');
+
+        startMarker = L.circleMarker(pts[0], {
+          radius: 6, color: '#fff', weight: 2.5, fillColor: '#2d8a5e', fillOpacity: 1
+        }).addTo(map);
+
+        map.fitBounds(L.polyline(strokes.flat()).getBounds(), { padding: [60, 60] });
+        updateDistance();
+      }
+
+      responseEl.innerHTML = `
+        <div style="margin-bottom:10px; line-height:1.6;">${route.description}</div>
+        ${route.tips ? `<div style="font-size:11px; color:rgba(255,255,255,0.4); letter-spacing:0.03em;">💡 ${route.tips}</div>` : ''}
+      `;
+
+      retryBtn.style.display = 'block';
+      btn.textContent = 'Design My Route';
+      btn.disabled = false;
+
+    } catch (err) {
+      responseEl.innerHTML = '<span style="color:#c0392b;">Could not generate route. Please try again.</span>';
+      btn.textContent = 'Design My Route';
+      btn.disabled = false;
+    }
+  }
+
+  // ── Locate ─────────────────────────────────────────────────
   function locateMe() {
     map.locate({ setView: true, maxZoom: 15 });
   }
-
   map.on('locationfound', e => map.setView(e.latlng, 15));
   map.on('locationerror', () => alert('Location access denied or unavailable.'));
 </script>
