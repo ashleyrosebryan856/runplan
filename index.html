@@ -61,6 +61,7 @@
       position: fixed;
       top: 56px;
       left: 0; right: 0; bottom: 0;
+      cursor: crosshair;
     }
 
     .hint {
@@ -99,25 +100,20 @@
 </header>
 
 <div id="map"></div>
-<div class="hint" id="hint">Click the map to start plotting your route</div>
+<div class="hint" id="hint">Hold and drag to draw your route</div>
 
 <script>
-  const map = L.map('map').setView([45.5231, -122.6765], 13);
+  const map = L.map('map', { zoomControl: true }).setView([45.5231, -122.6765], 13);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
     maxZoom: 19
   }).addTo(map);
 
-  let points = [], markers = [], polyline = null;
+  let points = [], polyline = null, startMarker = null;
+  let drawing = false;
   const hint = document.getElementById('hint');
-
-  const makeIcon = (color, size) => L.divIcon({
-    className: '',
-    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,0.4);"></div>`,
-    iconSize: [size, size],
-    iconAnchor: [size/2, size/2]
-  });
+  const MIN_DIST = 8;
 
   function haversine(a, b) {
     const R = 6371000, r = x => x * Math.PI / 180;
@@ -133,36 +129,85 @@
     document.getElementById('dist-km').textContent = '· ' + (d / 1000).toFixed(2) + ' km';
   }
 
-  function redraw() {
-    markers.forEach(m => map.removeLayer(m));
-    markers = [];
-    points.forEach((p, i) => {
-      const icon = i === 0 ? makeIcon('#2d8a5e', 14) : makeIcon('#c0392b', 10);
-      markers.push(L.marker(p, { icon, interactive: false }).addTo(map));
-    });
-    if (polyline) map.removeLayer(polyline);
-    if (points.length > 1)
-      polyline = L.polyline(points, { color: '#c0392b', weight: 3.5, opacity: 0.85 }).addTo(map);
+  function getLatLng(e) {
+    if (e.latlng) return e.latlng;
+    if (e.originalEvent && e.originalEvent.touches && e.originalEvent.touches[0]) {
+      return map.mouseEventToLatLng(e.originalEvent.touches[0]);
+    }
+    return null;
+  }
+
+  function startDraw(e) {
+    drawing = true;
+    map.dragging.disable();
+    map.doubleClickZoom.disable();
+    hint.classList.add('hidden');
+
+    const latlng = getLatLng(e);
+    if (!latlng) return;
+
+    if (points.length === 0) {
+      if (startMarker) map.removeLayer(startMarker);
+      startMarker = L.circleMarker(latlng, {
+        radius: 6, color: '#fff', weight: 2.5,
+        fillColor: '#2d8a5e', fillOpacity: 1
+      }).addTo(map);
+    }
+
+    points.push(latlng);
+
+    if (!polyline) {
+      polyline = L.polyline(points, { color: '#c0392b', weight: 4, opacity: 0.85 }).addTo(map);
+    }
+
     updateDistance();
   }
 
-  map.on('click', e => {
-    points.push(e.latlng);
-    hint.classList.add('hidden');
-    redraw();
-  });
+  function continueDraw(e) {
+    if (!drawing) return;
+    const latlng = getLatLng(e);
+    if (!latlng) return;
+
+    const last = points[points.length - 1];
+    if (map.distance(last, latlng) < MIN_DIST) return;
+
+    points.push(latlng);
+    polyline.setLatLngs(points);
+    updateDistance();
+  }
+
+  function stopDraw() {
+    drawing = false;
+    map.dragging.enable();
+    map.doubleClickZoom.enable();
+  }
+
+  map.on('mousedown', startDraw);
+  map.on('mousemove', continueDraw);
+  map.on('mouseup', stopDraw);
+
+  map.on('touchstart', startDraw, { passive: false });
+  map.on('touchmove', continueDraw, { passive: false });
+  map.on('touchend', stopDraw);
 
   function undoLast() {
     if (!points.length) return;
-    points.pop();
-    if (!points.length) hint.classList.remove('hidden');
-    redraw();
+    points.splice(Math.max(0, points.length - 20), 20);
+    if (polyline) polyline.setLatLngs(points);
+    if (points.length === 0) {
+      if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
+      if (polyline) { map.removeLayer(polyline); polyline = null; }
+      hint.classList.remove('hidden');
+    }
+    updateDistance();
   }
 
   function clearRoute() {
     points = [];
+    if (polyline) { map.removeLayer(polyline); polyline = null; }
+    if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
     hint.classList.remove('hidden');
-    redraw();
+    updateDistance();
   }
 
   function locateMe() {
