@@ -5,419 +5,139 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RUNPLAN</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400&family=Jost:wght@300;400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Jost:wght@300;400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --cream: #f7f5f0;
-      --cream-dark: #efede8;
-      --ink: #1c1c1a;
-      --ink-mid: #6b6960;
-      --ink-light: #b0ada6;
-      --rule: #e4e1db;
-      --red: #b84a3a;
-      --green: #3a7a5a;
+      --cream: #f7f5f0; --cream-dark: #efede8;
+      --ink: #1c1c1a; --ink-mid: #6b6960; --ink-light: #b0ada6;
+      --rule: #e4e1db; --red: #b84a3a; --green: #3a7a5a;
       --sans: 'Jost', sans-serif;
-      --serif: 'Cormorant Garamond', Georgia, serif;
     }
-
     html, body { height: 100%; }
+    body { font-family: var(--sans); font-weight: 300; background: var(--cream); color: var(--ink); }
 
-    body {
-      font-family: var(--sans);
-      font-weight: 300;
-      background: var(--cream);
-      color: var(--ink);
-    }
-
-    /* ── Map ── */
-    #map {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-    }
+    #map { position: fixed; inset: 0; z-index: 0; }
     #map.route-mode { cursor: crosshair; }
 
-    /* ── Sidebar ── */
     .sidebar {
-      position: fixed;
-      top: 0; left: 0;
-      width: 280px;
-      height: 100vh;
-      background: rgba(247, 245, 240, 0.96);
-      border-right: 1px solid var(--rule);
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      backdrop-filter: blur(8px);
+      position: fixed; top: 0; left: 0; width: 280px; height: 100vh;
+      background: rgba(247,245,240,0.96); border-right: 1px solid var(--rule);
+      z-index: 100; display: flex; flex-direction: column; backdrop-filter: blur(8px);
     }
-
-    .sidebar-top {
-      padding: 28px 28px 0;
-    }
+    .sidebar-top { padding: 24px 28px 0; }
 
     .wordmark {
-      font-family: var(--serif);
-      font-weight: 300;
-      font-size: 22px;
-      letter-spacing: 0.18em;
-      color: var(--ink);
-      text-transform: uppercase;
+      font-family: 'Bebas Neue', sans-serif; font-size: 42px;
+      letter-spacing: 0.04em; color: var(--ink); line-height: 1;
     }
 
-    .wordmark span {
-      color: var(--red);
-    }
+    .distance-block { margin-top: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--rule); }
+    .distance-label { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-light); margin-bottom: 4px; }
+    .distance-primary { display: flex; align-items: baseline; gap: 6px; }
+    .distance-mi { font-family: 'Bebas Neue', sans-serif; font-size: 56px; line-height: 1; color: var(--ink); letter-spacing: 0.02em; }
+    .distance-unit { font-size: 13px; color: var(--ink-mid); letter-spacing: 0.08em; }
+    .distance-km { font-size: 12px; color: var(--ink-light); margin-top: 2px; letter-spacing: 0.04em; }
 
-    /* ── Distance display ── */
-    .distance-block {
-      margin-top: 32px;
-      padding-bottom: 24px;
-      border-bottom: 1px solid var(--rule);
-    }
-
-    .distance-label {
-      font-size: 9px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--ink-light);
-      margin-bottom: 6px;
-    }
-
-    .distance-primary {
-      display: flex;
-      align-items: baseline;
-      gap: 6px;
-    }
-
-    .distance-mi {
-      font-family: var(--serif);
-      font-size: 52px;
-      font-weight: 300;
-      line-height: 1;
-      color: var(--ink);
-      letter-spacing: -0.01em;
-    }
-
-    .distance-unit {
-      font-size: 13px;
-      color: var(--ink-mid);
-      letter-spacing: 0.08em;
-    }
-
-    .distance-km {
-      font-size: 12px;
-      color: var(--ink-light);
-      margin-top: 4px;
-      letter-spacing: 0.04em;
-    }
-
-    /* ── Mode toggle ── */
-    .mode-section {
-      padding: 20px 28px;
-      border-bottom: 1px solid var(--rule);
-    }
-
-    .section-label {
-      font-size: 9px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--ink-light);
-      margin-bottom: 12px;
-    }
-
-    .mode-toggle {
-      display: flex;
-      gap: 0;
-      border: 1px solid var(--rule);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-
+    .mode-section { padding: 16px 28px; border-bottom: 1px solid var(--rule); }
+    .section-label { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-light); margin-bottom: 10px; }
+    .mode-toggle { display: flex; border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; }
     .mode-toggle button {
-      flex: 1;
-      background: transparent;
-      border: none;
-      padding: 9px 0;
-      font-family: var(--sans);
-      font-weight: 300;
-      font-size: 10px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--ink-light);
-      cursor: pointer;
-      transition: all 0.2s;
+      flex: 1; background: transparent; border: none; padding: 9px 0;
+      font-family: var(--sans); font-weight: 300; font-size: 10px;
+      letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-light);
+      cursor: pointer; transition: all 0.2s;
     }
+    .mode-toggle button:first-child { border-right: 1px solid var(--rule); }
+    .mode-toggle button.active { background: var(--ink); color: var(--cream); }
+    .mode-toggle button:not(.active):hover { background: var(--cream-dark); color: var(--ink-mid); }
 
-    .mode-toggle button:first-child {
-      border-right: 1px solid var(--rule);
-    }
-
-    .mode-toggle button.active {
-      background: var(--ink);
-      color: var(--cream);
-    }
-
-    .mode-toggle button:not(.active):hover {
-      background: var(--cream-dark);
-      color: var(--ink-mid);
-    }
-
-    /* ── Actions ── */
-    .actions-section {
-      padding: 20px 28px;
-      border-bottom: 1px solid var(--rule);
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
+    .actions-section { padding: 16px 28px; border-bottom: 1px solid var(--rule); display: flex; flex-direction: column; gap: 8px; }
     .btn {
-      width: 100%;
-      background: transparent;
-      border: 1px solid var(--rule);
-      color: var(--ink-mid);
-      padding: 10px 0;
-      font-family: var(--sans);
-      font-weight: 300;
-      font-size: 10px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      cursor: pointer;
-      border-radius: 2px;
-      transition: all 0.2s;
-      text-align: center;
+      width: 100%; background: transparent; border: 1px solid var(--rule);
+      color: var(--ink-mid); padding: 10px 0; font-family: var(--sans);
+      font-weight: 300; font-size: 10px; letter-spacing: 0.14em;
+      text-transform: uppercase; cursor: pointer; border-radius: 2px;
+      transition: all 0.2s; text-align: center;
     }
-
-    .btn:hover {
-      border-color: var(--ink-mid);
-      color: var(--ink);
-    }
-
-    .btn-primary {
-      background: var(--ink);
-      border-color: var(--ink);
-      color: var(--cream);
-    }
-
-    .btn-primary:hover {
-      background: #333;
-      border-color: #333;
-      color: var(--cream);
-    }
-
-    .btn-row {
-      display: flex;
-      gap: 8px;
-    }
-
+    .btn:hover { border-color: var(--ink-mid); color: var(--ink); }
+    .btn-primary { background: var(--ink); border-color: var(--ink); color: var(--cream); }
+    .btn-primary:hover { background: #333; border-color: #333; }
+    .btn-row { display: flex; gap: 8px; }
     .btn-row .btn { flex: 1; }
 
-    /* ── Saved routes list ── */
-    .routes-section {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px 28px;
-    }
-
-    .route-item {
-      padding: 14px 0;
-      border-bottom: 1px solid var(--rule);
-      cursor: default;
-    }
-
+    .routes-section { flex: 1; overflow-y: auto; padding: 16px 28px; }
+    .route-item { padding: 13px 0; border-bottom: 1px solid var(--rule); }
     .route-item:last-child { border-bottom: none; }
-
-    .route-item-name {
-      font-size: 13px;
-      color: var(--ink);
-      letter-spacing: 0.02em;
-    }
-
-    .route-item-meta {
-      font-size: 10px;
-      color: var(--ink-light);
-      letter-spacing: 0.06em;
-      margin-top: 3px;
-      text-transform: uppercase;
-    }
-
-    .route-item-actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 8px;
-    }
-
+    .route-item-name { font-size: 13px; color: var(--ink); }
+    .route-item-meta { font-size: 10px; color: var(--ink-light); letter-spacing: 0.06em; margin-top: 3px; text-transform: uppercase; }
+    .route-item-actions { display: flex; gap: 10px; margin-top: 8px; }
     .route-item-actions button {
-      font-family: var(--sans);
-      font-weight: 300;
-      font-size: 9px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      background: none;
-      border: 1px solid var(--rule);
-      color: var(--ink-light);
-      padding: 4px 12px;
-      cursor: pointer;
-      border-radius: 2px;
-      transition: all 0.15s;
+      font-family: var(--sans); font-weight: 300; font-size: 9px; letter-spacing: 0.12em;
+      text-transform: uppercase; background: none; border: 1px solid var(--rule);
+      color: var(--ink-light); padding: 4px 12px; cursor: pointer; border-radius: 2px; transition: all 0.15s;
     }
-
     .route-item-actions button:hover { color: var(--ink); border-color: var(--ink-mid); }
     .route-item-actions button.del:hover { color: var(--red); border-color: var(--red); }
+    .empty-state { padding: 20px 0; font-size: 11px; color: var(--ink-light); letter-spacing: 0.06em; line-height: 2; }
 
-    .empty-state {
-      padding: 24px 0;
-      font-size: 11px;
-      color: var(--ink-light);
-      letter-spacing: 0.06em;
-      line-height: 2;
-    }
+    .sidebar-bottom { padding: 16px 28px; border-top: 1px solid var(--rule); }
 
-    /* ── Bottom locate ── */
-    .sidebar-bottom {
-      padding: 20px 28px;
-      border-top: 1px solid var(--rule);
-    }
-
-    /* ── Save modal ── */
     .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(28, 28, 26, 0.35);
-      z-index: 200;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.25s;
+      position: fixed; inset: 0; background: rgba(28,28,26,0.35);
+      z-index: 200; display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s;
     }
-
-    .modal-overlay.open {
-      opacity: 1;
-      pointer-events: all;
-    }
-
-    .modal {
-      background: var(--cream);
-      border: 1px solid var(--rule);
-      width: 360px;
-      padding: 36px;
-      border-radius: 2px;
-    }
-
-    .modal h2 {
-      font-family: var(--serif);
-      font-weight: 300;
-      font-size: 22px;
-      letter-spacing: 0.08em;
-      margin-bottom: 28px;
-    }
-
-    .field {
-      margin-bottom: 18px;
-    }
-
-    .field label {
-      display: block;
-      font-size: 9px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--ink-light);
-      margin-bottom: 7px;
-    }
-
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal { background: var(--cream); border: 1px solid var(--rule); width: 360px; padding: 36px; border-radius: 2px; }
+    .modal h2 { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 0.06em; margin-bottom: 28px; }
+    .field { margin-bottom: 18px; }
+    .field label { display: block; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-light); margin-bottom: 7px; }
     .field input, .field textarea {
-      width: 100%;
-      background: transparent;
-      border: none;
-      border-bottom: 1px solid var(--rule);
-      color: var(--ink);
-      padding: 6px 0;
-      font-family: var(--sans);
-      font-weight: 300;
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s;
+      width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--rule);
+      color: var(--ink); padding: 6px 0; font-family: var(--sans); font-weight: 300;
+      font-size: 14px; outline: none; transition: border-color 0.2s;
     }
-
-    .field input:focus, .field textarea:focus {
-      border-bottom-color: var(--ink-mid);
-    }
-
-    .field textarea {
-      resize: none;
-      height: 64px;
-    }
-
-    .modal-actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 28px;
-    }
-
+    .field input:focus, .field textarea:focus { border-bottom-color: var(--ink-mid); }
+    .field textarea { resize: none; height: 64px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 28px; }
     .modal-actions .btn { flex: 1; }
 
-    /* ── Snap indicator ── */
     .snap-indicator {
-      position: fixed;
-      bottom: 28px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--ink);
-      color: var(--cream);
-      font-family: var(--sans);
-      font-size: 10px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      padding: 8px 20px;
-      border-radius: 20px;
-      z-index: 150;
-      opacity: 0;
-      transition: opacity 0.3s;
-      pointer-events: none;
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      background: var(--ink); color: var(--cream); font-family: var(--sans);
+      font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 8px 20px; border-radius: 20px; z-index: 150;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
     }
-
     .snap-indicator.visible { opacity: 1; }
 
-    /* ── Hint ── */
     .hint {
-      position: fixed;
-      bottom: 28px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--ink);
-      color: rgba(247,245,240,0.85);
-      font-family: var(--sans);
-      font-size: 10px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      padding: 8px 20px;
-      border-radius: 20px;
-      z-index: 140;
-      pointer-events: none;
-      white-space: nowrap;
-      transition: opacity 0.4s;
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      background: var(--ink); color: rgba(247,245,240,0.85); font-family: var(--sans);
+      font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 8px 20px; border-radius: 20px; z-index: 140;
+      pointer-events: none; white-space: nowrap; transition: opacity 0.4s;
     }
-
     .hint.hidden { opacity: 0; }
 
-    /* Leaflet overrides */
-    .leaflet-control-zoom {
-      border: 1px solid var(--rule) !important;
-      border-radius: 2px !important;
-      box-shadow: none !important;
+    .mile-label {
+      background: var(--ink); color: var(--cream); font-family: var(--sans);
+      font-size: 10px; font-weight: 400; letter-spacing: 0.06em;
+      padding: 3px 8px; border-radius: 10px; border: 2px solid var(--cream);
+      white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     }
-    .leaflet-control-zoom a {
-      background: var(--cream) !important;
-      color: var(--ink-mid) !important;
-      border-bottom: 1px solid var(--rule) !important;
-      font-weight: 300 !important;
+    .start-label {
+      background: var(--green); color: #fff; font-family: var(--sans);
+      font-size: 10px; font-weight: 400; letter-spacing: 0.1em;
+      padding: 3px 10px; border-radius: 10px; text-transform: uppercase;
+      border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     }
+
+    .leaflet-control-zoom { border: 1px solid var(--rule) !important; border-radius: 2px !important; box-shadow: none !important; }
+    .leaflet-control-zoom a { background: var(--cream) !important; color: var(--ink-mid) !important; border-bottom: 1px solid var(--rule) !important; font-weight: 300 !important; }
     .leaflet-control-zoom a:hover { color: var(--ink) !important; }
     .leaflet-control-attribution { display: none; }
   </style>
@@ -428,8 +148,7 @@
 
 <aside class="sidebar">
   <div class="sidebar-top">
-    <div class="wordmark">Run<span>·</span>Plan</div>
-
+    <div class="wordmark">RUNPLAN</div>
     <div class="distance-block">
       <div class="distance-label">Distance</div>
       <div class="distance-primary">
@@ -451,6 +170,7 @@
   <div class="actions-section">
     <div class="section-label">Actions</div>
     <button class="btn btn-primary" onclick="openSave()">Save Route</button>
+    <button class="btn" onclick="closeLoop()">Close Loop</button>
     <div class="btn-row">
       <button class="btn" onclick="undoStroke()">Undo</button>
       <button class="btn" onclick="clearRoute()">Clear</button>
@@ -467,24 +187,14 @@
   </div>
 </aside>
 
-<!-- Save Modal -->
 <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <h2>Save Route</h2>
-    <div class="field">
-      <label>Name</label>
-      <input type="text" id="save-name" placeholder="Morning loop" />
-    </div>
-    <div class="field">
-      <label>Date</label>
-      <input type="date" id="save-date" />
-    </div>
-    <div class="field">
-      <label>Notes</label>
-      <textarea id="save-notes" placeholder="How did it feel?"></textarea>
-    </div>
+    <div class="field"><label>Name</label><input type="text" id="save-name" placeholder="Morning loop" /></div>
+    <div class="field"><label>Date</label><input type="date" id="save-date" /></div>
+    <div class="field"><label>Notes</label><textarea id="save-notes" placeholder="How did it feel?"></textarea></div>
     <div class="modal-actions">
-      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="document.getElementById('modal-overlay').classList.remove('open')">Cancel</button>
       <button class="btn btn-primary" onclick="saveRoute()">Save</button>
     </div>
   </div>
@@ -495,13 +205,12 @@
 
 <script>
   const map = L.map('map', { zoomControl: true }).setView([45.5231, -122.6765], 13);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19
-  }).addTo(map);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
 
-  let strokes = [], snappedLines = [], startMarker = null;
+  let strokes = [], snappedLines = [], startMarker = null, locationPin = null;
   let currentStroke = [], previewLine = null;
   let drawing = false, mode = 'map';
+  let mileMarkers = [];
 
   const hint = document.getElementById('hint');
   const snapIndicator = document.getElementById('snap-indicator');
@@ -516,7 +225,6 @@
     if (duration) hintTimer = setTimeout(() => hint.classList.add('hidden'), duration);
   }
 
-  // ── Mode ────────────────────────────────────────────────────
   function setMode(m) {
     mode = m;
     document.getElementById('btn-map').classList.toggle('active', m === 'map');
@@ -533,7 +241,6 @@
     }
   }
 
-  // ── Distance ────────────────────────────────────────────────
   function haversine(a, b) {
     const R = 6371000, r = x => x * Math.PI / 180;
     const dLat = r(b.lat - a.lat), dLon = r(b.lng - a.lng);
@@ -551,9 +258,37 @@
     const d = totalDistance();
     document.getElementById('dist-mi').textContent = (d / 1609.344).toFixed(2);
     document.getElementById('dist-km').textContent = (d / 1000).toFixed(2) + ' km';
+    updateMileMarkers();
   }
 
-  // ── Drawing ─────────────────────────────────────────────────
+  function updateMileMarkers() {
+    mileMarkers.forEach(m => map.removeLayer(m));
+    mileMarkers = [];
+    const pts = strokes.flat();
+    if (pts.length < 2) return;
+    let accumulated = 0, nextMile = 1609.344, mileCount = 1;
+    for (let i = 1; i < pts.length; i++) {
+      const seg = haversine(pts[i-1], pts[i]);
+      accumulated += seg;
+      while (accumulated >= nextMile) {
+        const overshoot = accumulated - nextMile;
+        const frac = 1 - (overshoot / seg);
+        const lat = pts[i-1].lat + frac * (pts[i].lat - pts[i-1].lat);
+        const lng = pts[i-1].lng + frac * (pts[i].lng - pts[i-1].lng);
+        mileMarkers.push(L.marker([lat, lng], {
+          icon: L.divIcon({
+            className: '',
+            html: `<div class="mile-label">${mileCount} mi</div>`,
+            iconAnchor: [20, 10]
+          }),
+          interactive: false
+        }).addTo(map));
+        mileCount++;
+        nextMile += 1609.344;
+      }
+    }
+  }
+
   function getLatLng(e) {
     if (e.latlng) return e.latlng;
     if (e.originalEvent?.touches?.[0]) return map.mouseEventToLatLng(e.originalEvent.touches[0]);
@@ -567,16 +302,14 @@
     const latlng = getLatLng(e);
     if (!latlng) return;
     if (strokes.flat().length === 0 && !startMarker) {
-      startMarker = L.circleMarker(latlng, {
-        radius: 6, color: '#fff', weight: 2.5,
-        fillColor: '#3a7a5a', fillOpacity: 1
+      startMarker = L.marker(latlng, {
+        icon: L.divIcon({ className: '', html: '<div class="start-label">Start</div>', iconAnchor: [26, 12] }),
+        interactive: false
       }).addTo(map);
     }
     currentStroke = [latlng];
     if (previewLine) map.removeLayer(previewLine);
-    previewLine = L.polyline(currentStroke, {
-      color: '#b84a3a', weight: 2, opacity: 0.4, dashArray: '5,5'
-    }).addTo(map);
+    previewLine = L.polyline(currentStroke, { color: '#b84a3a', weight: 2, opacity: 0.4, dashArray: '5,5' }).addTo(map);
   }
 
   function continueDraw(e) {
@@ -594,8 +327,7 @@
     drawing = false;
     if (currentStroke.length < 2) {
       if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
-      currentStroke = [];
-      return;
+      currentStroke = []; return;
     }
     snapIndicator.classList.add('visible');
     try {
@@ -621,7 +353,6 @@
   map.on('touchmove', continueDraw, { passive: false });
   map.on('touchend', stopDraw);
 
-  // ── Snapping ────────────────────────────────────────────────
   function perpDist(pt, a, b) {
     const dx = b.lng-a.lng, dy = b.lat-a.lat, len2 = dx*dx+dy*dy;
     if (len2 === 0) return Math.hypot(pt.lng-a.lng, pt.lat-a.lat);
@@ -650,7 +381,26 @@
     return data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng }));
   }
 
-  // ── Undo / Clear ────────────────────────────────────────────
+  async function closeLoop() {
+    if (!strokes.length || !startMarker) { showHint('Draw a route first', 2000); return; }
+    const firstPt = strokes[0][0];
+    const lastStroke = strokes[strokes.length - 1];
+    const lastPt = lastStroke[lastStroke.length - 1];
+    snapIndicator.classList.add('visible');
+    try {
+      const snapped = await snapToRoads([lastPt, firstPt]);
+      const pts = (snapped && snapped.length > 1) ? snapped : [lastPt, firstPt];
+      strokes.push(pts);
+      snappedLines.push(L.polyline(pts, { color: '#b84a3a', weight: 3.5, opacity: 0.85 }).addTo(map));
+    } catch {
+      strokes.push([lastPt, firstPt]);
+      snappedLines.push(L.polyline([lastPt, firstPt], { color: '#b84a3a', weight: 3.5, opacity: 0.85 }).addTo(map));
+    }
+    snapIndicator.classList.remove('visible');
+    updateDistance();
+    showHint('Loop closed', 2000);
+  }
+
   function undoStroke() {
     if (!strokes.length) return;
     strokes.pop();
@@ -668,11 +418,11 @@
     snappedLines.forEach(l => map.removeLayer(l)); snappedLines = [];
     if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
     if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
+    mileMarkers.forEach(m => map.removeLayer(m)); mileMarkers = [];
     showHint('Switch to Route to start drawing', 0);
     updateDistance();
   }
 
-  // ── Save / Load ─────────────────────────────────────────────
   function openSave() {
     if (!strokes.length) { showHint('Draw a route first', 2000); return; }
     document.getElementById('save-date').value = new Date().toISOString().split('T')[0];
@@ -688,8 +438,7 @@
     const name = document.getElementById('save-name').value.trim();
     if (!name) { document.getElementById('save-name').focus(); return; }
     const route = {
-      id: Date.now(),
-      name,
+      id: Date.now(), name,
       date: document.getElementById('save-date').value,
       notes: document.getElementById('save-notes').value.trim(),
       distanceMi: (totalDistance() / 1609.344).toFixed(2),
@@ -712,10 +461,7 @@
   function renderSavedRoutes() {
     const saved = getSaved();
     const el = document.getElementById('saved-list');
-    if (!saved.length) {
-      el.innerHTML = '<div class="empty-state">No routes saved yet.</div>';
-      return;
-    }
+    if (!saved.length) { el.innerHTML = '<div class="empty-state">No routes saved yet.</div>'; return; }
     el.innerHTML = saved.map(r => `
       <div class="route-item">
         <div class="route-item-name">${r.name}</div>
@@ -724,8 +470,7 @@
           <button onclick="loadRoute(${r.id})">Load</button>
           <button class="del" onclick="deleteRoute(${r.id})">Delete</button>
         </div>
-      </div>
-    `).join('');
+      </div>`).join('');
   }
 
   function loadRoute(id) {
@@ -737,8 +482,9 @@
       strokes.push(pts);
       snappedLines.push(L.polyline(pts, { color: '#b84a3a', weight: 3.5, opacity: 0.85 }).addTo(map));
       if (!startMarker && pts.length) {
-        startMarker = L.circleMarker(pts[0], {
-          radius: 6, color: '#fff', weight: 2.5, fillColor: '#3a7a5a', fillOpacity: 1
+        startMarker = L.marker(pts[0], {
+          icon: L.divIcon({ className: '', html: '<div class="start-label">Start</div>', iconAnchor: [26, 12] }),
+          interactive: false
         }).addTo(map);
       }
     });
@@ -754,10 +500,17 @@
   }
 
   function locateMe() { map.locate({ setView: true, maxZoom: 15 }); }
-  map.on('locationfound', e => map.setView(e.latlng, 15));
-  map.on('locationerror', () => showHint('Location unavailable', 2000));
 
-  // Init
+  map.on('locationfound', e => {
+    if (locationPin) map.removeLayer(locationPin);
+    locationPin = L.circleMarker(e.latlng, {
+      radius: 9, color: '#fff', weight: 3,
+      fillColor: '#3a7a5a', fillOpacity: 1
+    }).addTo(map);
+    map.setView(e.latlng, 15);
+  });
+
+  map.on('locationerror', () => showHint('Location unavailable', 2000));
   renderSavedRoutes();
 </script>
 </body>
