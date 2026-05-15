@@ -977,7 +977,7 @@
   }
 
   // Space = pan mode, release = draw mode
-  let spaceHeld = false;
+  let spaceHeld = window.innerWidth <= 768; // true (pan) on mobile, false (draw) on desktop
 
   function enterPanMode() {
     if (spaceHeld) return;
