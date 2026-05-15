@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no" />
   <title>RUNPLAN</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,32 +18,7 @@
     document.getElementById('cmd-panel').classList.toggle('expanded', cmdExpanded);
   }
 
-  // ── Mobile mode toggle ─────────────────────────────────────
-  let mobileMode = 'pan';
 
-  function setMobileMode(m) {
-    mobileMode = m;
-    document.getElementById('mobile-btn-draw').classList.toggle('active', m === 'draw');
-    document.getElementById('mobile-btn-pan').classList.toggle('active', m === 'pan');
-    if (m === 'pan') {
-      map.dragPan.enable();
-      map.scrollZoom.enable();
-      map.touchZoomRotate.enable();
-      spaceHeld = true;
-    } else {
-      map.dragPan.disable();
-      map.scrollZoom.disable();
-      map.touchZoomRotate.disable();
-      spaceHeld = false;
-    }
-  }
-
-  // Init mobile mode after map loads
-  function initMobileMode() {
-    if (window.innerWidth <= 768) {
-      setMobileMode('pan');
-    }
-  }
 
   // ── Wordmark letter flip ───────────────────────────────────
   (function() {
@@ -98,11 +73,14 @@
     html, body {
       height: 100%;
       width: 100%;
+      max-width: 100%;
       overflow: hidden;
       position: fixed;
       top: 0; left: 0;
       overscroll-behavior: none;
       -webkit-overflow-scrolling: touch;
+      -webkit-text-size-adjust: 100%;
+      touch-action: manipulation;
     }
     body { font-family: var(--sans); background: var(--cream); color: var(--ink); }
 
