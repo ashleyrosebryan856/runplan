@@ -25,9 +25,12 @@
   function toggleCmd() {
     cmdExpanded = !cmdExpanded;
     document.getElementById('cmd-panel').classList.toggle('expanded', cmdExpanded);
-    // Hide Draw/Pan when action bar is open
     const modebar = document.getElementById('mobile-mode-bar');
-    if (modebar) modebar.style.display = cmdExpanded ? 'none' : 'flex';
+    if (modebar) {
+      modebar.style.display = cmdExpanded ? 'none' : 'flex';
+      modebar.style.visibility = cmdExpanded ? 'hidden' : 'visible';
+      modebar.style.zIndex = cmdExpanded ? '-1' : '100';
+    }
   }
 
 
@@ -1384,9 +1387,12 @@
   function toggleCmd() {
     cmdExpanded = !cmdExpanded;
     document.getElementById('cmd-panel').classList.toggle('expanded', cmdExpanded);
-    // Hide Draw/Pan when action bar is open
     const modebar = document.getElementById('mobile-mode-bar');
-    if (modebar) modebar.style.display = cmdExpanded ? 'none' : 'flex';
+    if (modebar) {
+      modebar.style.display = cmdExpanded ? 'none' : 'flex';
+      modebar.style.visibility = cmdExpanded ? 'hidden' : 'visible';
+      modebar.style.zIndex = cmdExpanded ? '-1' : '100';
+    }
   }
 
   // ── Mobile mode toggle ─────────────────────────────────────
