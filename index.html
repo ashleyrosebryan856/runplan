@@ -1147,7 +1147,7 @@
     if (spaceHeld || !drawing) return;
     const xy = getXY(e); if (!xy) return;
     const last = currentStroke[currentStroke.length - 1];
-    if (map.project(xy).dist(map.project(last)) < 3) return;
+    if (map.project(xy).dist(map.project(last)) < 12) return;
     currentStroke.push(xy);
     if (map.getSource('preview') && currentStroke.length > 1) map.getSource('preview').setData(lineGeo(currentStroke));
   });
@@ -1204,7 +1204,7 @@
     return [pts[0],pts[pts.length-1]];
   }
   async function snapToRoads(raw) {
-    let s = simplify(raw, 0.00015);
+    let s = simplify(raw, 0.0004);
     // Cap at 25 waypoints for Mapbox (max 25 coordinates per request)
     if (s.length > 25) s = s.filter((_,i) => i % Math.ceil(s.length/25) === 0 || i === s.length-1);
     const coords = s.map(p => `${p[0]},${p[1]}`).join(';');
