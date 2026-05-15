@@ -2,13 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>RUNPLAN</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Akt:wght@100..900&family=Finlandica+Text:ital,wght@0,100..900;1,100..900&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" />
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js">
+
+
+  // ── Mobile cmd panel toggle ────────────────────────────────
+  let cmdExpanded = false;
+  function toggleCmd() {
+    cmdExpanded = !cmdExpanded;
+    document.getElementById('cmd-panel').classList.toggle('expanded', cmdExpanded);
+  }
 
   // ── Mobile mode toggle ─────────────────────────────────────
   let mobileMode = 'pan';
@@ -91,7 +99,7 @@
       position: fixed;
       top: 28px;
       left: 28px;
-      z-index: 100;
+      z-index: 200;
       font-family: var(--display);
       font-size: 34px;
       font-weight: 900;
@@ -623,16 +631,18 @@
       /* Wordmark — smaller */
       .wordmark {
         font-size: 22px;
-        top: 16px;
-        left: 16px;
+        top: max(16px, env(safe-area-inset-top));
+        left: max(16px, env(safe-area-inset-left));
+        z-index: 200;
       }
 
       /* Gear — top right */
       .gear-btn {
-        top: 16px;
-        right: 16px;
-        width: 36px;
-        height: 36px;
+        top: max(16px, env(safe-area-inset-top));
+        right: max(16px, env(safe-area-inset-right));
+        width: 40px;
+        height: 40px;
+        z-index: 200;
       }
 
       /* Settings panel */
@@ -661,6 +671,7 @@
         width: 100%;
         border-radius: 16px 16px 0 0;
         border-bottom: none;
+        padding-bottom: env(safe-area-inset-bottom);
       }
 
       /* Bigger touch targets on mobile */
@@ -735,6 +746,73 @@
     }
     .mobile-mode-btn:first-child { border-right: var(--border); }
     .mobile-mode-btn.active { background: var(--ink); color: var(--white); }
+
+    @media (max-width: 768px) {
+
+      /* Collapsed action block by default */
+      .cmd {
+        transform: translateY(calc(100% - 44px));
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .cmd.expanded {
+        transform: translateY(0);
+      }
+
+      /* Drag handle at top of cmd */
+      .cmd-handle {
+        display: flex !important;
+      }
+
+      /* Draw/Pan toggle — bottom right floating */
+      .mobile-mode-bar {
+        bottom: 20px;
+        right: 16px;
+        left: auto;
+        transform: none;
+        flex-direction: column;
+        gap: 6px;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+      }
+      .mobile-mode-btn {
+        border: var(--border);
+        border-radius: var(--radius);
+        background: var(--white);
+        box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+        width: 64px;
+        text-align: center;
+      }
+      .mobile-mode-btn.active {
+        background: var(--ink);
+        color: var(--white);
+      }
+
+      /* Distance counter sits above handle */
+      .distance-block {
+        bottom: 60px;
+        left: 16px;
+      }
+
+      /* Space hint hidden */
+      .space-hint { display: none; }
+    }
+
+    /* Handle — hidden on desktop */
+    .cmd-handle {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 0 4px;
+      cursor: pointer;
+      border-bottom: var(--border);
+    }
+    .cmd-handle-bar {
+      width: 36px;
+      height: 4px;
+      background: rgba(15,15,13,0.2);
+      border-radius: 2px;
+    }
   </style>
 </head>
 <body>
@@ -798,7 +876,10 @@
 </div>
 
 <!-- Command Center -->
-<div class="cmd">
+<div class="cmd" id="cmd-panel">
+  <div class="cmd-handle" onclick="toggleCmd()">
+    <div class="cmd-handle-bar"></div>
+  </div>
 
   <div class="cmd-section">
     <div class="pill-group" style="margin-bottom:10px;">
@@ -1149,13 +1230,27 @@
   }
 
   function locateMe() {
-    navigator.geolocation.getCurrentPosition(pos => {
-      const ll = [pos.coords.longitude, pos.coords.latitude];
-      if (locationMarker) locationMarker.remove();
-      const el = document.createElement('div'); el.className = 'locate-dot';
-      locationMarker = new mapboxgl.Marker({ element: el }).setLngLat(ll).addTo(map);
-      map.flyTo({ center: ll, zoom: 15, duration: 1200 });
-    });
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const ll = [pos.coords.longitude, pos.coords.latitude];
+        if (locationMarker) locationMarker.remove();
+        const el = document.createElement('div'); el.className = 'locate-dot';
+        locationMarker = new mapboxgl.Marker({ element: el }).setLngLat(ll).addTo(map);
+        map.flyTo({ center: ll, zoom: 15, duration: 1200 });
+      },
+      err => {
+        if (err.code === 1) {
+          alert('Location access denied. Please allow location access in your browser settings.');
+        } else {
+          alert('Could not get your location. Please try again.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   }
 
   function toggleRoutes() {
@@ -1270,6 +1365,14 @@
     renderRoutes();
   }
 
+
+
+  // ── Mobile cmd panel toggle ────────────────────────────────
+  let cmdExpanded = false;
+  function toggleCmd() {
+    cmdExpanded = !cmdExpanded;
+    document.getElementById('cmd-panel').classList.toggle('expanded', cmdExpanded);
+  }
 
   // ── Mobile mode toggle ─────────────────────────────────────
   let mobileMode = 'pan';
