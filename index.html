@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>RUNPLAN</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,7 +33,15 @@
     } else {
       map.dragPan.disable();
       map.scrollZoom.disable();
+      map.touchZoomRotate.disable();
       spaceHeld = false;
+    }
+  }
+
+  // Init mobile mode after map loads
+  function initMobileMode() {
+    if (window.innerWidth <= 768) {
+      setMobileMode('pan');
     }
   }
 
@@ -87,7 +95,15 @@
       --border: 1px solid var(--ink);
     }
 
-    html, body { height: 100%; overflow: hidden; }
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      position: fixed;
+      top: 0; left: 0;
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: touch;
+    }
     body { font-family: var(--sans); background: var(--cream); color: var(--ink); }
 
     /* ── Map ── */
@@ -956,6 +972,7 @@
   function lineGeo(c) { return { type: 'Feature', geometry: { type: 'LineString', coordinates: c } }; }
 
   map.on('load', () => {
+    initMobileMode();
     map.addSource('route', { type: 'geojson', data: emptyGeo() });
     map.addLayer({ id: 'route-line', type: 'line', source: 'route',
       paint: { 'line-color': '#0f0f0d', 'line-width': 4, 'line-opacity': 0.9 },
@@ -1021,11 +1038,13 @@
     }
   });
 
-  // Start in draw mode by default
-  map.dragPan.disable();
-  map.scrollZoom.disable();
-  map.doubleClickZoom.disable();
-  map.touchZoomRotate.enable(); // keep pinch zoom on mobile
+  // Desktop starts in draw mode; mobile handled by initMobileMode
+  if (window.innerWidth > 768) {
+    map.dragPan.disable();
+    map.scrollZoom.disable();
+    map.doubleClickZoom.disable();
+  }
+  map.touchZoomRotate.enable();
 
   function showSpaceHint(show) {
     const el = document.getElementById('space-hint');
@@ -1378,7 +1397,15 @@
     } else {
       map.dragPan.disable();
       map.scrollZoom.disable();
+      map.touchZoomRotate.disable();
       spaceHeld = false;
+    }
+  }
+
+  // Init mobile mode after map loads
+  function initMobileMode() {
+    if (window.innerWidth <= 768) {
+      setMobileMode('pan');
     }
   }
 
