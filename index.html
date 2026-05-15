@@ -91,11 +91,11 @@
       -webkit-text-size-adjust: 100%;
       touch-action: manipulation;
     }
-    body { font-family: var(--sans); background: var(--cream); color: var(--ink); }
+    body { font-family: var(--sans); background: var(--ink); color: var(--ink); }
 
     /* ── Map ── */
     #map { position: fixed; inset: 0; z-index: 0; }
-    #map { cursor: crosshair; }
+    body.route-mode #map { cursor: crosshair; }
 
     /* ── Wordmark — top left ── */
     .wordmark {
@@ -675,7 +675,7 @@
         width: 100%;
         border-radius: 16px 16px 0 0;
         border-bottom: none;
-        padding-bottom: env(safe-area-inset-bottom);
+        padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
       }
 
       /* Bigger touch targets on mobile */
