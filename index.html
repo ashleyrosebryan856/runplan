@@ -4,290 +4,978 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RUNPLAN</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Jost:wght@300;400&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Akt:wght@100..900&family=Finlandica+Text:ital,wght@0,100..900;1,100..900&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js">
+
+  // ── Mobile mode toggle ─────────────────────────────────────
+  let mobileMode = 'pan';
+
+  function setMobileMode(m) {
+    mobileMode = m;
+    document.getElementById('mobile-btn-draw').classList.toggle('active', m === 'draw');
+    document.getElementById('mobile-btn-pan').classList.toggle('active', m === 'pan');
+    if (m === 'pan') {
+      map.dragPan.enable();
+      map.scrollZoom.enable();
+      map.touchZoomRotate.enable();
+      spaceHeld = true;
+    } else {
+      map.dragPan.disable();
+      map.scrollZoom.disable();
+      spaceHeld = false;
+    }
+  }
+
+  // ── Wordmark letter flip ───────────────────────────────────
+  (function() {
+    const letters = document.querySelectorAll('.wl');
+    const flipped = new Set();
+
+    function maybeFlip() {
+      const idx = Math.floor(Math.random() * letters.length);
+      const letter = letters[idx];
+
+      if (flipped.has(idx)) {
+        // flip back
+        letter.classList.remove('flipped');
+        flipped.delete(idx);
+      } else {
+        // flip forward
+        letter.classList.add('flipped');
+        flipped.add(idx);
+        // auto flip back after random short delay
+        setTimeout(() => {
+          letter.classList.remove('flipped');
+          flipped.delete(idx);
+        }, 200 + Math.random() * 400);
+      }
+
+      // schedule next event at random interval
+      setTimeout(maybeFlip, 600 + Math.random() * 2400);
+    }
+
+    // kick off after a short pause
+    setTimeout(maybeFlip, 1200);
+  })();
+
+</script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    button:focus { outline: none; }
     :root {
-      --cream: #f7f5f0; --cream-dark: #efede8;
-      --ink: #1c1c1a; --ink-mid: #6b6960; --ink-light: #b0ada6;
-      --rule: #e4e1db; --red: #b84a3a; --green: #3a7a5a;
-      --sans: 'Jost', sans-serif;
+      --ink: #0f0f0d;
+      --white: #ffffff;
+      --cream: #f5f3ee;
+      --rule: rgba(15,15,13,0.12);
+      --red: #b84a3a;
+      --green: #3a7a5a;
+      --sans: 'Outfit', sans-serif;
+      --display: 'Outfit', sans-serif;
+      --ease: cubic-bezier(0.4, 0, 0.2, 1);
+      --radius: 6px;
+      --border: 1px solid var(--ink);
     }
-    html, body { height: 100%; }
-    body { font-family: var(--sans); font-weight: 300; background: var(--cream); color: var(--ink); }
 
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: var(--sans); background: var(--cream); color: var(--ink); }
+
+    /* ── Map ── */
     #map { position: fixed; inset: 0; z-index: 0; }
-    #map.route-mode { cursor: crosshair; }
+    #map { cursor: crosshair; }
 
-    .sidebar {
-      position: fixed; top: 0; left: 0; width: 280px; height: 100vh;
-      background: rgba(247,245,240,0.96); border-right: 1px solid var(--rule);
-      z-index: 100; display: flex; flex-direction: column; backdrop-filter: blur(8px);
-    }
-    .sidebar-top { padding: 24px 28px 0; }
-
+    /* ── Wordmark — top left ── */
     .wordmark {
-      font-family: 'Bebas Neue', sans-serif; font-size: 42px;
-      letter-spacing: 0.04em; color: var(--ink); line-height: 1;
+      position: fixed;
+      top: 28px;
+      left: 28px;
+      z-index: 100;
+      font-family: var(--display);
+      font-size: 34px;
+      font-weight: 900;
+      letter-spacing: 0.03em;
+      color: var(--ink);
+      line-height: 1;
+      display: flex;
+      gap: 0;
+    }
+    .wl {
+      display: inline-block;
+      transition: transform 0.12s cubic-bezier(0.4,0,0.2,1);
+      transform-origin: center center;
+    }
+    .wl.flipped {
+      transform: scaleX(-1);
     }
 
-    .distance-block { margin-top: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--rule); }
-    .distance-label { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); margin-bottom: 4px; }
-    .distance-primary { display: flex; align-items: baseline; gap: 6px; }
-    .distance-mi { font-family: 'Bebas Neue', sans-serif; font-size: 56px; line-height: 1; color: var(--ink); letter-spacing: 0.02em; }
-    .distance-unit { font-size: 13px; color: var(--ink); letter-spacing: 0.08em; }
-    .distance-km { font-size: 12px; color: var(--ink); margin-top: 2px; letter-spacing: 0.04em; }
-
-    .mode-section { padding: 16px 28px; border-bottom: 1px solid var(--rule); }
-    .section-label { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); margin-bottom: 10px; }
-    .mode-toggle { display: flex; border: 1px solid var(--rule); border-radius: 2px; overflow: hidden; }
-    .mode-toggle button {
-      flex: 1; background: transparent; border: none; padding: 9px 0;
-      font-family: var(--sans); font-weight: 300; font-size: 10px;
-      letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink);
-      cursor: pointer; transition: all 0.2s;
+    /* ── Gear button — top right ── */
+    .gear-btn {
+      position: fixed;
+      top: 28px;
+      right: 28px;
+      z-index: 110;
+      width: 40px;
+      height: 40px;
+      background: var(--ink);
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--white);
+      transition: all 0.2s var(--ease);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
     }
-    .mode-toggle button:first-child { border-right: 1px solid var(--rule); }
-    .mode-toggle button.active { background: var(--ink); color: var(--cream); }
-    .mode-toggle button:not(.active):hover { background: var(--cream-dark); color: var(--ink); }
+    .gear-btn:hover { background: #333; }
+    .gear-btn.open { background: #333; }
 
-    .actions-section { padding: 16px 28px; border-bottom: 1px solid var(--rule); display: flex; flex-direction: column; gap: 8px; }
-    .btn {
-      width: 100%; background: transparent; border: 1px solid var(--rule);
-      color: var(--ink); padding: 10px 0; font-family: var(--sans);
-      font-weight: 300; font-size: 10px; letter-spacing: 0.14em;
-      text-transform: uppercase; cursor: pointer; border-radius: 2px;
-      transition: all 0.2s; text-align: center;
+    /* ── Settings panel ── */
+    .settings-panel {
+      position: fixed;
+      top: 78px;
+      right: 28px;
+      width: 240px;
+      background: var(--white);
+      border: var(--border);
+      border-radius: 12px;
+      z-index: 105;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-8px);
+      transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
     }
-    .btn:hover { border-color: var(--ink); color: var(--ink); }
-    .btn-primary { background: var(--ink); border-color: var(--ink); color: var(--cream); }
-    .btn-primary:hover { background: #333; border-color: #333; }
-    .btn-row { display: flex; gap: 8px; }
-    .btn-row .btn { flex: 1; }
+    .settings-panel.open {
+      opacity: 1;
+      pointer-events: all;
+      transform: translateY(0);
+    }
+    .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: var(--border);
+    }
+    .settings-title {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink);
+    }
+    .settings-close {
+      font-size: 12px;
+      background: none;
+      border: none;
+      color: rgba(15,15,13,0.4);
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+    .settings-close:hover { color: var(--ink); }
+    .settings-section {
+      padding: 14px 18px;
+      border-bottom: var(--border);
+    }
+    .settings-section:last-child { border-bottom: none; }
+    .settings-label {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 8px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(15,15,13,0.4);
+      margin-bottom: 10px;
+    }
 
-    .routes-section { flex: 1; overflow-y: auto; padding: 16px 28px; }
-    .route-item { padding: 13px 0; border-bottom: 1px solid var(--rule); }
+    /* ── Distance — bottom left ── */
+    .distance-block {
+      position: fixed;
+      bottom: 28px;
+      left: 28px;
+      z-index: 100;
+    }
+    .cmd-dist-label {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 8px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink);
+      margin-bottom: 2px;
+      text-shadow: 0 1px 6px rgba(255,255,255,0.8);
+    }
+    .cmd-dist-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .cmd-dist-mi {
+      font-family: var(--display);
+      font-size: 120px;
+      font-weight: 900;
+      line-height: 0.85;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+      text-shadow: 0 2px 20px rgba(255,255,255,0.5);
+    }
+    .cmd-dist-unit {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--ink);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .cmd-dist-km {
+      font-family: var(--sans);
+      font-weight: 400;
+      font-size: 11px;
+      color: rgba(15,15,13,0.5);
+      letter-spacing: 0.06em;
+      margin-top: 4px;
+    }
+
+    /* ── Command Center — bottom right ── */
+    .cmd {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      width: 260px;
+      background: var(--white);
+      border: var(--border);
+      border-radius: 12px;
+      z-index: 100;
+      overflow: hidden;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.12);
+    }
+
+    .cmd-routes-toggle {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 8px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink);
+      background: var(--white);
+      border: var(--border);
+      border-radius: var(--radius);
+      padding: 5px 10px;
+      cursor: pointer;
+      transition: all 0.2s var(--ease);
+    }
+    .cmd-routes-toggle:hover { background: var(--ink); color: var(--white); }
+
+    /* Section */
+    .cmd-section {
+      padding: 24px 24px;
+      border-bottom: var(--border);
+    }
+    .cmd-section-label {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 8px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(15,15,13,0.4);
+      margin-bottom: 8px;
+    }
+
+    /* Pill group */
+    .pill-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .pill:focus { outline: none; }
+    .pill {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink);
+      background: var(--white);
+      border: var(--border);
+      border-radius: var(--radius);
+      padding: 9px 12px 7px;
+      cursor: pointer;
+      transition: all 0.2s var(--ease);
+      white-space: nowrap;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .pill:hover { background: var(--ink); color: var(--white); }
+    .pill.active { background: var(--ink); color: var(--white); }
+    .pill.wide { flex: 1; text-align: center; }
+    .pill.danger:hover { background: #0f0f0d; border-color: #0f0f0d; color: var(--white); }
+
+    /* Actions grid */
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .action-grid .pill { text-align: center; }
+
+    /* Routes panel — slides in */
+    .routes-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s var(--ease);
+    }
+    .routes-panel.open { max-height: 280px; }
+    .routes-inner {
+      border-top: var(--border);
+      padding: 12px 20px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .routes-inner::-webkit-scrollbar { width: 3px; }
+    .routes-inner::-webkit-scrollbar-track { background: transparent; }
+    .routes-inner::-webkit-scrollbar-thumb { background: rgba(15,15,13,0.2); border-radius: 2px; }
+
+    .route-item {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--rule);
+      cursor: default;
+    }
     .route-item:last-child { border-bottom: none; }
-    .route-item-name { font-size: 13px; color: var(--ink); }
-    .route-item-meta { font-size: 10px; color: var(--ink); letter-spacing: 0.06em; margin-top: 3px; text-transform: uppercase; }
-    .route-item-actions { display: flex; gap: 10px; margin-top: 8px; }
-    .route-item-actions button {
-      font-family: var(--sans); font-weight: 300; font-size: 9px; letter-spacing: 0.12em;
-      text-transform: uppercase; background: none; border: 1px solid var(--rule);
-      color: var(--ink); padding: 4px 12px; cursor: pointer; border-radius: 2px; transition: all 0.15s;
+    .route-item-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
     }
-    .route-item-actions button:hover { color: var(--ink); border-color: var(--ink); }
-    .route-item-actions button.del:hover { color: var(--red); border-color: var(--red); }
-    .empty-state { padding: 20px 0; font-size: 11px; color: var(--ink); letter-spacing: 0.06em; line-height: 2; }
-
-    .sidebar-bottom { padding: 16px 28px; border-top: 1px solid var(--rule); }
-
-    .modal-overlay {
-      position: fixed; inset: 0; background: rgba(28,28,26,0.35);
-      z-index: 200; display: flex; align-items: center; justify-content: center;
-      opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    .route-item-name {
+      font-family: var(--display);
+      font-size: 20px;
+      color: var(--ink);
+      letter-spacing: 0.03em;
+      line-height: 1;
     }
-    .modal-overlay.open { opacity: 1; pointer-events: all; }
-    .modal { background: var(--cream); border: 1px solid var(--rule); width: 360px; padding: 36px; border-radius: 2px; }
-    .modal h2 { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 0.06em; margin-bottom: 28px; }
-    .field { margin-bottom: 18px; }
-    .field label { display: block; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink); margin-bottom: 7px; }
-    .field input, .field textarea {
-      width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--rule);
-      color: var(--ink); padding: 6px 0; font-family: var(--sans); font-weight: 300;
-      font-size: 14px; outline: none; transition: border-color 0.2s;
+    .route-item-dist {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 9px;
+      color: rgba(15,15,13,0.4);
+      letter-spacing: 0.1em;
+      white-space: nowrap;
     }
-    .field input:focus, .field textarea:focus { border-bottom-color: var(--ink); }
-    .field textarea { resize: none; height: 64px; }
-    .modal-actions { display: flex; gap: 10px; margin-top: 28px; }
-    .modal-actions .btn { flex: 1; }
+    .route-item-meta {
+      font-family: var(--sans);
+      font-weight: 400;
+      font-size: 9px;
+      color: rgba(15,15,13,0.35);
+      letter-spacing: 0.04em;
+      margin-top: 2px;
+    }
+    .route-item-actions {
+      display: flex;
+      gap: 5px;
+      margin-top: 7px;
+    }
+    .route-item-btn {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 8px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink);
+      background: var(--white);
+      border: var(--border);
+      border-radius: var(--radius);
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .route-item-btn:hover { background: var(--ink); color: var(--white); }
+    .route-item-btn.del:hover { background: var(--red); border-color: var(--red); color: var(--white); }
 
+    .routes-empty {
+      font-family: var(--sans);
+      font-weight: 400;
+      font-size: 10px;
+      color: rgba(15,15,13,0.3);
+      letter-spacing: 0.08em;
+      padding: 12px 0;
+    }
+
+    /* ── Save sheet ── */
+    .save-sheet {
+      position: fixed; inset: 0;
+      z-index: 400;
+      display: flex;
+      align-items: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s var(--ease);
+    }
+    .save-sheet.open { opacity: 1; pointer-events: all; }
+    .save-sheet-bg {
+      position: absolute; inset: 0;
+      background: rgba(15,15,13,0.4);
+      backdrop-filter: blur(4px);
+    }
+    .save-sheet-panel {
+      position: relative;
+      width: 100%;
+      background: var(--white);
+      border-top: var(--border);
+      padding: 40px 48px;
+      transform: translateY(40px);
+      transition: transform 0.5s var(--ease);
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 32px;
+      align-items: end;
+    }
+    .save-sheet.open .save-sheet-panel { transform: translateY(0); }
+
+    .save-field { display: flex; flex-direction: column; }
+    .save-label {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 8px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(15,15,13,0.4);
+      margin-bottom: 10px;
+    }
+    .save-input {
+      font-family: var(--sans);
+      font-weight: 400;
+      font-size: 15px;
+      color: var(--ink);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid rgba(15,15,13,0.15);
+      padding: 6px 0;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    .save-input:focus { border-bottom-color: var(--ink); }
+    .save-input::placeholder { color: rgba(15,15,13,0.2); }
+
+    .save-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+    .save-submit {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--white);
+      background: var(--ink);
+      border: var(--border);
+      border-radius: var(--radius);
+      padding: 12px 24px;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .save-submit:hover { background: #333; }
+    .save-cancel {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink);
+      background: var(--white);
+      border: var(--border);
+      border-radius: var(--radius);
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .save-cancel:hover { background: var(--ink); color: var(--white); }
+
+    /* ── Snapping indicator ── */
     .snap-indicator {
-      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
-      background: var(--ink); color: var(--cream); font-family: var(--sans);
-      font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
-      padding: 8px 20px; border-radius: 20px; z-index: 150;
-      opacity: 0; transition: opacity 0.3s; pointer-events: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink);
+      background: var(--white);
+      border: var(--border);
+      border-radius: var(--radius);
+      padding: 10px 20px;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.3s var(--ease);
+      pointer-events: none;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.1);
     }
     .snap-indicator.visible { opacity: 1; }
 
-    .hint {
-      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
-      background: var(--ink); color: rgba(247,245,240,0.95); font-family: var(--sans);
-      font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
-      padding: 8px 20px; border-radius: 20px; z-index: 140;
-      pointer-events: none; white-space: nowrap; transition: opacity 0.4s;
+    /* ── Markers ── */
+    .mile-pip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
     }
-    .hint.hidden { opacity: 0; }
+    .mile-pip-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--white);
+      border: 1px solid var(--ink);
+      flex-shrink: 0;
+    }
+    .mile-pip-label {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      color: var(--ink);
+      text-transform: uppercase;
+      background: var(--white);
+      border: 1px solid var(--ink);
+      padding: 2px 8px;
+      border-radius: var(--radius);
+      white-space: nowrap;
+    }
+    .start-pip {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      color: var(--ink);
+      text-transform: uppercase;
+      color: var(--white);
+      background: #0f0f0d;
+      border: 1px solid var(--ink);
+      padding: 3px 10px;
+      border-radius: var(--radius);
+      white-space: nowrap;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.2);
+    }
+    .locate-dot {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--green);
+      border: 3px solid var(--white);
+      box-shadow: 0 0 0 3px rgba(58,122,90,0.3);
+    }
 
-    .mile-label {
-      display: inline-block;
-      background: var(--ink); color: var(--cream); font-family: var(--sans);
-      font-size: 10px; font-weight: 400; letter-spacing: 0.06em;
-      padding: 4px 10px; border-radius: 10px; border: 2px solid var(--cream);
-      white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    .space-hint {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      font-family: var(--sans);
+      font-weight: 600;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink);
+      background: var(--white);
+      border: var(--border);
+      border-radius: var(--radius);
+      padding: 8px 16px;
+      opacity: 1;
+      pointer-events: none;
+      transition: all 0.2s var(--ease);
+      white-space: nowrap;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
     }
-    .start-label {
-      display: inline-block;
-      background: var(--green); color: #fff; font-family: var(--sans);
-      font-size: 10px; font-weight: 400; letter-spacing: 0.1em;
-      padding: 4px 12px; border-radius: 10px; text-transform: uppercase;
-      border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    .space-hint.panning { background: var(--ink); color: var(--white); }
+    .space-hint.panning kbd { background: var(--white); color: var(--ink); }
+    .space-hint kbd {
+      font-family: var(--sans);
+      font-weight: 700;
+      background: var(--ink);
+      color: var(--white);
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 8px;
     }
 
-
-    .style-section { padding: 16px 28px; border-bottom: 1px solid var(--rule); }
-    .style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .style-btn {
-      background: transparent; border: 1px solid var(--rule);
-      color: var(--ink); padding: 8px 4px; font-family: var(--sans);
-      font-weight: 300; font-size: 9px; letter-spacing: 0.1em;
-      text-transform: uppercase; cursor: pointer; border-radius: 2px;
-      transition: all 0.2s; text-align: center; line-height: 1.4;
+    .mapboxgl-ctrl-logo { display: none !important; }
+    .mapboxgl-ctrl-attrib { display: none !important; }
+    .mapboxgl-ctrl-group {
+      background: var(--white) !important;
+      border: var(--border) !important;
+      border-radius: var(--radius) !important;
+      box-shadow: none !important;
     }
-    .style-btn:hover { border-color: var(--ink); }
-    .style-btn.active { background: var(--ink); border-color: var(--ink); color: var(--cream); }
-    .leaflet-control-zoom { border: 1px solid var(--rule) !important; border-radius: 2px !important; box-shadow: none !important; }
 
-    .style-section { padding: 16px 28px; border-bottom: 1px solid var(--rule); }
-    .style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .style-btn {
-      background: transparent; border: 1px solid var(--rule);
-      color: var(--ink); padding: 8px 4px; font-family: var(--sans);
-      font-weight: 300; font-size: 9px; letter-spacing: 0.1em;
-      text-transform: uppercase; cursor: pointer; border-radius: 2px;
-      transition: all 0.2s; text-align: center; line-height: 1.4;
-    }
-    .style-btn:hover { border-color: var(--ink); }
-    .style-btn.active { background: var(--ink); border-color: var(--ink); color: var(--cream); }
-    .leaflet-control-zoom a { background: var(--cream) !important; color: var(--ink) !important; border-bottom: 1px solid var(--rule) !important; font-weight: 300 !important; }
+    /* ── Mobile layout ── */
+    @media (max-width: 768px) {
 
-    .style-section { padding: 16px 28px; border-bottom: 1px solid var(--rule); }
-    .style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .style-btn {
-      background: transparent; border: 1px solid var(--rule);
-      color: var(--ink); padding: 8px 4px; font-family: var(--sans);
-      font-weight: 300; font-size: 9px; letter-spacing: 0.1em;
-      text-transform: uppercase; cursor: pointer; border-radius: 2px;
-      transition: all 0.2s; text-align: center; line-height: 1.4;
+      /* Wordmark — smaller */
+      .wordmark {
+        font-size: 22px;
+        top: 16px;
+        left: 16px;
+      }
+
+      /* Gear — top right */
+      .gear-btn {
+        top: 16px;
+        right: 16px;
+        width: 36px;
+        height: 36px;
+      }
+
+      /* Settings panel */
+      .settings-panel {
+        top: 62px;
+        right: 16px;
+        width: calc(100vw - 32px);
+      }
+
+      /* Distance counter — smaller, bottom left */
+      .distance-block {
+        bottom: 160px;
+        left: 16px;
+      }
+      .cmd-dist-mi {
+        font-size: 64px;
+      }
+      .cmd-dist-unit { font-size: 12px; }
+      .cmd-dist-km { font-size: 9px; }
+
+      /* Action block — full width bottom bar */
+      .cmd {
+        bottom: 0;
+        right: 0;
+        left: 0;
+        width: 100%;
+        border-radius: 16px 16px 0 0;
+        border-bottom: none;
+      }
+
+      /* Bigger touch targets on mobile */
+      .pill {
+        padding: 12px 12px 10px;
+        font-size: 10px;
+      }
+
+      /* Space hint — above action block */
+      .space-hint {
+        bottom: 170px;
+        font-size: 8px;
+        padding: 6px 14px;
+      }
+
+      /* Snap indicator */
+      .snap-indicator {
+        top: 40%;
+      }
+
+      /* Save sheet — stack vertically on mobile */
+      .save-sheet-panel {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        padding: 28px 24px;
+        border-radius: 16px 16px 0 0;
+      }
+
+      /* Routes panel max height */
+      .routes-panel.open {
+        max-height: 240px;
+      }
+
+      /* Space hint hidden on mobile — no keyboard */
+      .space-hint {
+        display: none;
+      }
+
+      /* Add a pan/draw toggle button for mobile instead */
+      .mobile-mode-bar {
+        display: flex !important;
+      }
     }
-    .style-btn:hover { border-color: var(--ink); }
-    .style-btn.active { background: var(--ink); border-color: var(--ink); color: var(--cream); }
-    .leaflet-control-zoom a:hover { color: var(--ink) !important; }
-    .leaflet-control-attribution { display: none; }
+
+    /* Hide mobile mode bar on desktop */
+    .mobile-mode-bar {
+      display: none;
+      position: fixed;
+      bottom: 155px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      gap: 0;
+      border: var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--white);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+    }
+    .mobile-mode-btn {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink);
+      background: var(--white);
+      border: none;
+      padding: 10px 20px 8px;
+      cursor: pointer;
+      transition: all 0.2s var(--ease);
+    }
+    .mobile-mode-btn:first-child { border-right: var(--border); }
+    .mobile-mode-btn.active { background: var(--ink); color: var(--white); }
   </style>
 </head>
 <body>
 
 <div id="map"></div>
 
-<aside class="sidebar">
-  <div class="sidebar-top">
-    <div class="wordmark">RUNPLAN</div>
-    <div class="distance-block">
-      <div class="distance-label">Distance</div>
-      <div class="distance-primary">
-        <span class="distance-mi" id="dist-mi">0.00</span>
-        <span class="distance-unit">mi</span>
-      </div>
-      <div class="distance-km" id="dist-km">0.00 km</div>
+<!-- Wordmark -->
+<div class="wordmark" id="wordmark">
+  <span class="wl">R</span><span class="wl">U</span><span class="wl">N</span><span class="wl">P</span><span class="wl">L</span><span class="wl">A</span><span class="wl">N</span>
+</div>
+
+<!-- Settings button -->
+<button class="gear-btn" onclick="toggleSettings()" id="gear-btn" title="Settings">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+</button>
+
+<!-- Settings Panel -->
+<div class="settings-panel" id="settings-panel">
+  <div class="settings-header">
+    <span class="settings-title">Settings</span>
+    <button class="settings-close" onclick="toggleSettings()">✕</button>
+  </div>
+
+  <div class="settings-section">
+    <div class="settings-label">Map Style</div>
+    <div class="pill-group">
+      <button class="pill active" id="env-street" onclick="switchEnv('streets-v12','env-street')">Street</button>
+      <button class="pill" id="env-trail" onclick="switchEnv('outdoors-v12','env-trail')">Trail</button>
+      <button class="pill" id="env-sat" onclick="switchEnv('satellite-streets-v12','env-sat')">Satellite</button>
     </div>
   </div>
 
-  <div class="mode-section">
-    <div class="section-label">Mode</div>
-    <div class="mode-toggle">
-      <button id="btn-map" onclick="setMode('map')" class="active">Map</button>
-      <button id="btn-route" onclick="setMode('route')">Route</button>
+  <div class="settings-section">
+    <div class="settings-label">Units</div>
+    <div class="pill-group">
+      <button class="pill active" id="unit-imperial" onclick="setUnits('imperial')">Miles</button>
+      <button class="pill" id="unit-metric" onclick="setUnits('metric')">Kilometres</button>
     </div>
   </div>
 
-  <div class="style-section">
-    <div class="section-label">Map Style</div>
-    <div class="style-grid" id="style-grid"></div>
-  </div>
-  <div class="actions-section">
-    <div class="section-label">Actions</div>
-    <button class="btn btn-primary" onclick="openSave()">Save Route</button>
-    <button class="btn" onclick="closeLoop()">Close Loop</button>
-    <div class="btn-row">
-      <button class="btn" onclick="undoStroke()">Undo</button>
-      <button class="btn" onclick="clearRoute()">Clear</button>
-    </div>
-  </div>
-
-  <div class="routes-section">
-    <div class="section-label">Saved Routes</div>
-    <div id="saved-list"><div class="empty-state">No routes saved yet.</div></div>
-  </div>
-
-  <div class="sidebar-bottom">
-    <button class="btn" onclick="locateMe()">Locate Me</button>
-  </div>
-</aside>
-
-<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
-  <div class="modal" onclick="event.stopPropagation()">
-    <h2>Save Route</h2>
-    <div class="field"><label>Name</label><input type="text" id="save-name" placeholder="Morning loop" /></div>
-    <div class="field"><label>Date</label><input type="date" id="save-date" /></div>
-    <div class="field"><label>Notes</label><textarea id="save-notes" placeholder="How did it feel?"></textarea></div>
-    <div class="modal-actions">
-      <button class="btn" onclick="document.getElementById('modal-overlay').classList.remove('open')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveRoute()">Save</button>
+  <div class="settings-section">
+    <div class="settings-label">Map Orientation</div>
+    <div class="pill-group">
+      <button class="pill active" id="north-free" onclick="setNorth('free')">Free</button>
+      <button class="pill" id="north-true" onclick="setNorth('true')">True North</button>
     </div>
   </div>
 </div>
 
+<!-- Distance -->
+<div class="distance-block">
+  <div class="cmd-dist-label">Distance</div>
+  <div class="cmd-dist-row">
+    <span class="cmd-dist-mi" id="dist-mi">0.00</span>
+    <span class="cmd-dist-unit" id="dist-unit">mi</span>
+  </div>
+  <div class="cmd-dist-km" id="dist-km">0.00 km</div>
+</div>
+
+<!-- Command Center -->
+<div class="cmd">
+
+  <div class="cmd-section">
+    <div class="pill-group" style="margin-bottom:10px;">
+      <button class="pill wide" onclick="undoStroke()">Undo</button>
+      <button class="pill wide danger" onclick="clearRoute()">Clear</button>
+    </div>
+    <div class="pill-group" style="margin-bottom:10px;">
+      <button class="pill wide" onclick="closeLoop()">Close Loop</button>
+      <button class="pill wide" onclick="openSave()">Save Route</button>
+    </div>
+    <div class="pill-group">
+      <button class="pill wide" id="routes-toggle" onclick="toggleRoutes()">Routes</button>
+      <button class="pill" onclick="locateMe()" title="Locate me" style="flex:0;padding:7px 14px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <line x1="12" y1="2" x2="12" y2="6"/>
+          <line x1="12" y1="18" x2="12" y2="22"/>
+          <line x1="2" y1="12" x2="6" y2="12"/>
+          <line x1="18" y1="12" x2="22" y2="12"/>
+          <circle cx="12" cy="12" r="7" stroke-dasharray="1 0"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Routes panel -->
+  <div class="routes-panel" id="routes-panel">
+    <div class="routes-inner" id="routes-inner"></div>
+  </div>
+
+</div>
+
+<!-- Save sheet -->
+<div class="save-sheet" id="save-sheet">
+  <div class="save-sheet-bg" onclick="closeSave()"></div>
+  <div class="save-sheet-panel">
+    <div class="save-field">
+      <div class="save-label">Route Name</div>
+      <input class="save-input" type="text" id="save-name" placeholder="Morning loop" />
+    </div>
+    <div class="save-field">
+      <div class="save-label">Date</div>
+      <input class="save-input" type="date" id="save-date" />
+    </div>
+    <div class="save-field">
+      <div class="save-label">Notes</div>
+      <input class="save-input" type="text" id="save-notes" placeholder="How did it feel?" />
+    </div>
+    <div class="save-actions">
+      <button class="save-submit" onclick="saveRoute()">Save Route</button>
+      <button class="save-cancel" onclick="closeSave()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="space-hint" id="space-hint">
+  <span id="space-hint-text">Hold <kbd>Space</kbd> to pan</span>
+</div>
+<div class="mobile-mode-bar" id="mobile-mode-bar">
+  <button class="mobile-mode-btn" id="mobile-btn-draw" onclick="setMobileMode('draw')">Draw</button>
+  <button class="mobile-mode-btn active" id="mobile-btn-pan" onclick="setMobileMode('pan')">Pan</button>
+</div>
+
 <div class="snap-indicator" id="snap-indicator">Snapping to roads</div>
-<div class="hint" id="hint">Switch to Route to start drawing</div>
 
 <script>
-  const map = L.map('map', { zoomControl: true }).setView([45.5231, -122.6765], 13);
-  let tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+  mapboxgl.accessToken = 'pk.eyJ1IjoiYXNobGV5cm9zZWJyeWFuODU2IiwiYSI6ImNtcDZnbnMwZjFrcWoycm42cDU5cTl4azEifQ._nvXG6LV2sP1E699U31rog';
 
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/streets-v12',
+    center: [-122.6765, 45.5231],
+    zoom: 13
+  });
 
-  let strokes = [], snappedLines = [], startMarker = null, locationPin = null;
-  let currentStroke = [], previewLine = null;
-  let drawing = false, mode = 'map';
-  let mileMarkers = [];
+  // zoom controls removed
 
-  const hint = document.getElementById('hint');
-  const snapIndicator = document.getElementById('snap-indicator');
-  const mapEl = document.getElementById('map');
-  const MIN_DIST = 10;
+  let strokes = [], mileMarkers = [], startMarker = null, locationMarker = null;
+  let currentStroke = [], drawing = false, mode = 'map';
+  let routesOpen = false;
 
-  let hintTimer = null;
-  function showHint(msg, duration) {
-    clearTimeout(hintTimer);
-    hint.textContent = msg;
-    hint.classList.remove('hidden');
-    if (duration) hintTimer = setTimeout(() => hint.classList.add('hidden'), duration);
+  const snapEl = document.getElementById('snap-indicator');
+
+  function emptyGeo() { return { type: 'FeatureCollection', features: [] }; }
+  function lineGeo(c) { return { type: 'Feature', geometry: { type: 'LineString', coordinates: c } }; }
+
+  map.on('load', () => {
+    map.addSource('route', { type: 'geojson', data: emptyGeo() });
+    map.addLayer({ id: 'route-line', type: 'line', source: 'route',
+      paint: { 'line-color': '#0f0f0d', 'line-width': 4, 'line-opacity': 0.9 },
+      layout: { 'line-cap': 'round', 'line-join': 'round' }
+    });
+    map.addSource('preview', { type: 'geojson', data: emptyGeo() });
+    map.addLayer({ id: 'preview-line', type: 'line', source: 'preview',
+      paint: { 'line-color': '#0f0f0d', 'line-width': 4, 'line-opacity': 1, 'line-dasharray': [3,2] },
+      layout: { 'line-cap': 'round', 'line-join': 'round' }
+    });
+  });
+
+  function switchEnv(styleId, btnId) {
+    document.querySelectorAll('.pill[id^="env-"]').forEach(b => b.classList.remove('active'));
+    document.getElementById(btnId).classList.add('active');
+    map.setStyle('mapbox://styles/mapbox/' + styleId);
+    map.once('style.load', () => {
+      map.addSource('route', { type: 'geojson', data: emptyGeo() });
+      map.addLayer({ id: 'route-line', type: 'line', source: 'route', paint: { 'line-color': '#0f0f0d', 'line-width': 4, 'line-opacity': 0.9 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
+      map.addSource('preview', { type: 'geojson', data: emptyGeo() });
+      map.addLayer({ id: 'preview-line', type: 'line', source: 'preview', paint: { 'line-color': '#0f0f0d', 'line-width': 4, 'line-opacity': 1, 'line-dasharray': [3,2] }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
+      updateRouteLayer();
+    });
   }
 
-  function setMode(m) {
-    mode = m;
-    document.getElementById('btn-map').classList.toggle('active', m === 'map');
-    document.getElementById('btn-route').classList.toggle('active', m === 'route');
-    mapEl.classList.toggle('route-mode', m === 'route');
-    if (m === 'map') {
-      map.dragging.enable(); map.scrollWheelZoom.enable();
-      map.doubleClickZoom.enable(); map.touchZoom.enable();
-      showHint('Map mode — pan and zoom freely', 2000);
+  // Space = pan mode, release = draw mode
+  let spaceHeld = false;
+
+  function enterPanMode() {
+    if (spaceHeld) return;
+    spaceHeld = true;
+    document.body.classList.remove('route-mode');
+    document.body.style.cursor = 'grab';
+    map.dragPan.enable();
+    map.scrollZoom.enable();
+    map.doubleClickZoom.enable();
+    map.touchZoomRotate.enable();
+    showSpaceHint(true);
+  }
+
+  function exitPanMode() {
+    spaceHeld = false;
+    document.body.classList.add('route-mode');
+    document.body.style.cursor = '';
+    map.dragPan.disable();
+    map.scrollZoom.disable();
+    map.doubleClickZoom.disable();
+    map.touchZoomRotate.disable();
+    showSpaceHint(false);
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT') {
+      e.preventDefault();
+      enterPanMode();
+    }
+  });
+
+  document.addEventListener('keyup', e => {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      exitPanMode();
+    }
+  });
+
+  // Start in draw mode by default
+  map.dragPan.disable();
+  map.scrollZoom.disable();
+  map.doubleClickZoom.disable();
+  map.touchZoomRotate.enable(); // keep pinch zoom on mobile
+
+  function showSpaceHint(show) {
+    const el = document.getElementById('space-hint');
+    const txt = document.getElementById('space-hint-text');
+    if (!el) return;
+    if (show) {
+      el.classList.add('panning');
+      txt.innerHTML = 'Panning — release <kbd>Space</kbd> to draw';
     } else {
-      map.dragging.disable(); map.scrollWheelZoom.disable();
-      map.doubleClickZoom.disable(); map.touchZoom.disable();
-      showHint('Route mode — hold and drag to draw', 2500);
+      el.classList.remove('panning');
+      txt.innerHTML = 'Hold <kbd>Space</kbd> to pan';
     }
   }
 
+  function setMode(m) {} // kept for compatibility
+
   function haversine(a, b) {
     const R = 6371000, r = x => x * Math.PI / 180;
-    const dLat = r(b.lat - a.lat), dLon = r(b.lng - a.lng);
-    const s = Math.sin(dLat/2)**2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLon/2)**2;
+    const dLat = r(b[1]-a[1]), dLon = r(b[0]-a[0]);
+    const s = Math.sin(dLat/2)**2 + Math.cos(r(a[1])) * Math.cos(r(b[1])) * Math.sin(dLon/2)**2;
     return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
   }
 
@@ -299,183 +987,190 @@
 
   function updateDistance() {
     const d = totalDistance();
-    document.getElementById('dist-mi').textContent = (d / 1609.344).toFixed(2);
-    document.getElementById('dist-km').textContent = (d / 1000).toFixed(2) + ' km';
+    if (units === 'metric') {
+      document.getElementById('dist-mi').textContent = (d / 1000).toFixed(2);
+      document.getElementById('dist-km').textContent = (d / 1609.344).toFixed(2) + ' mi';
+    } else {
+      document.getElementById('dist-mi').textContent = (d / 1609.344).toFixed(2);
+      document.getElementById('dist-km').textContent = (d / 1000).toFixed(2) + ' km';
+    }
+    updateRouteLayer();
     updateMileMarkers();
   }
 
+  function updateRouteLayer() {
+    if (!map.getSource('route')) return;
+    const all = strokes.flat();
+    map.getSource('route').setData(all.length > 1 ? lineGeo(all) : emptyGeo());
+  }
+
   function updateMileMarkers() {
-    mileMarkers.forEach(m => map.removeLayer(m));
-    mileMarkers = [];
+    mileMarkers.forEach(m => m.remove()); mileMarkers = [];
     const pts = strokes.flat();
     if (pts.length < 2) return;
-    let accumulated = 0, nextMile = 1609.344, mileCount = 1;
+    let acc = 0, next = 1609.344, count = 1;
     for (let i = 1; i < pts.length; i++) {
       const seg = haversine(pts[i-1], pts[i]);
-      accumulated += seg;
-      while (accumulated >= nextMile) {
-        const overshoot = accumulated - nextMile;
-        const frac = 1 - (overshoot / seg);
-        const lat = pts[i-1].lat + frac * (pts[i].lat - pts[i-1].lat);
-        const lng = pts[i-1].lng + frac * (pts[i].lng - pts[i-1].lng);
-        mileMarkers.push(L.marker([lat, lng], {
-          icon: L.divIcon({
-            className: '',
-            html: `<div class="mile-label">${mileCount} mi</div>`,
-            iconAnchor: [0, 10]
-          }),
-          interactive: false
-        }).addTo(map));
-        mileCount++;
-        nextMile += 1609.344;
+      acc += seg;
+      while (acc >= next) {
+        const frac = 1 - (acc - next) / seg;
+        const lng = pts[i-1][0] + frac * (pts[i][0] - pts[i-1][0]);
+        const lat = pts[i-1][1] + frac * (pts[i][1] - pts[i-1][1]);
+        const el = document.createElement('div');
+        el.className = 'mile-pip';
+        el.innerHTML = `<div class="mile-pip-dot"></div><div class="mile-pip-label">${count} mi</div>`;
+        mileMarkers.push(new mapboxgl.Marker({ element: el, anchor: 'left' }).setLngLat([lng, lat]).addTo(map));
+        count++; next += 1609.344;
       }
     }
   }
 
-  function getLatLng(e) {
-    if (e.latlng) return e.latlng;
-    if (e.originalEvent?.touches?.[0]) return map.mouseEventToLatLng(e.originalEvent.touches[0]);
+  function getXY(e) {
+    if (e.lngLat) return [e.lngLat.lng, e.lngLat.lat];
+    if (e.originalEvent?.touches?.[0]) {
+      const t = e.originalEvent.touches[0];
+      const rect = map.getContainer().getBoundingClientRect();
+      const pt = map.unproject([t.clientX - rect.left, t.clientY - rect.top]);
+      return [pt.lng, pt.lat];
+    }
     return null;
   }
 
-  function startDraw(e) {
-    if (mode !== 'route') return;
+  map.on('mousedown', e => {
+    if (spaceHeld) return;
     drawing = true;
-    hint.classList.add('hidden');
-    const latlng = getLatLng(e);
-    if (!latlng) return;
+    const xy = getXY(e); if (!xy) return;
     if (strokes.flat().length === 0 && !startMarker) {
-      startMarker = L.marker(latlng, {
-        icon: L.divIcon({ className: '', html: '<div class="start-label">Start</div>', iconAnchor: [0, 12] }),
-        interactive: false
-      }).addTo(map);
+      const el = document.createElement('div'); el.className = 'start-pip'; el.textContent = 'Start';
+      startMarker = new mapboxgl.Marker({ element: el, anchor: 'left' }).setLngLat(xy).addTo(map);
     }
-    currentStroke = [latlng];
-    if (previewLine) map.removeLayer(previewLine);
-    previewLine = L.polyline(currentStroke, { color: '#b84a3a', weight: 2, opacity: 0.4, dashArray: '5,5' }).addTo(map);
-  }
+    currentStroke = [xy];
+  });
 
-  function continueDraw(e) {
-    if (mode !== 'route' || !drawing) return;
-    const latlng = getLatLng(e);
-    if (!latlng) return;
+  map.on('mousemove', e => {
+    if (spaceHeld || !drawing) return;
+    const xy = getXY(e); if (!xy) return;
     const last = currentStroke[currentStroke.length - 1];
-    if (map.distance(last, latlng) < MIN_DIST) return;
-    currentStroke.push(latlng);
-    previewLine.setLatLngs(currentStroke);
-  }
+    if (map.project(xy).dist(map.project(last)) < 3) return;
+    currentStroke.push(xy);
+    if (map.getSource('preview') && currentStroke.length > 1) map.getSource('preview').setData(lineGeo(currentStroke));
+  });
+
+  map.on('mouseup', stopDraw);
+
+  map.on('touchstart', e => {
+    if (spaceHeld) return;
+    e.preventDefault(); drawing = true;
+    const xy = getXY(e); if (!xy) return;
+    if (strokes.flat().length === 0 && !startMarker) {
+      const el = document.createElement('div'); el.className = 'start-pip'; el.textContent = 'Start';
+      startMarker = new mapboxgl.Marker({ element: el, anchor: 'left' }).setLngLat(xy).addTo(map);
+    }
+    currentStroke = [xy];
+  });
+
+  map.on('touchmove', e => {
+    if (spaceHeld || !drawing) return;
+    e.preventDefault();
+    const xy = getXY(e); if (!xy) return;
+    currentStroke.push(xy);
+    if (map.getSource('preview') && currentStroke.length > 1) map.getSource('preview').setData(lineGeo(currentStroke));
+  });
+
+  map.on('touchend', stopDraw);
 
   async function stopDraw() {
     if (!drawing) return;
     drawing = false;
-    if (currentStroke.length < 2) {
-      if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
-      currentStroke = []; return;
-    }
-    snapIndicator.classList.add('visible');
+    if (currentStroke.length < 2) { currentStroke = []; return; }
+    snapEl.classList.add('visible');
     try {
       const snapped = await snapToRoads(currentStroke);
-      if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
-      const pts = (snapped && snapped.length > 1) ? snapped : currentStroke;
-      strokes.push(pts);
-      snappedLines.push(L.polyline(pts, { color: '#b84a3a', weight: 3.5, opacity: 0.85 }).addTo(map));
-    } catch {
-      if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
-      strokes.push(currentStroke);
-      snappedLines.push(L.polyline(currentStroke, { color: '#b84a3a', weight: 3.5, opacity: 0.85 }).addTo(map));
-    }
-    snapIndicator.classList.remove('visible');
+      strokes.push((snapped && snapped.length > 1) ? snapped : currentStroke);
+    } catch { strokes.push(currentStroke); }
+    if (map.getSource('preview')) map.getSource('preview').setData(emptyGeo());
+    snapEl.classList.remove('visible');
     currentStroke = [];
     updateDistance();
   }
 
-  map.on('mousedown', startDraw);
-  map.on('mousemove', continueDraw);
-  map.on('mouseup', stopDraw);
-  map.on('touchstart', startDraw, { passive: false });
-  map.on('touchmove', continueDraw, { passive: false });
-  map.on('touchend', stopDraw);
-
   function perpDist(pt, a, b) {
-    const dx = b.lng-a.lng, dy = b.lat-a.lat, len2 = dx*dx+dy*dy;
-    if (len2 === 0) return Math.hypot(pt.lng-a.lng, pt.lat-a.lat);
-    const t = Math.max(0, Math.min(1, ((pt.lng-a.lng)*dx+(pt.lat-a.lat)*dy)/len2));
-    return Math.hypot(pt.lng-(a.lng+t*dx), pt.lat-(a.lat+t*dy));
+    const dx=b[0]-a[0], dy=b[1]-a[1], l2=dx*dx+dy*dy;
+    if (!l2) return Math.hypot(pt[0]-a[0], pt[1]-a[1]);
+    const t=Math.max(0,Math.min(1,((pt[0]-a[0])*dx+(pt[1]-a[1])*dy)/l2));
+    return Math.hypot(pt[0]-(a[0]+t*dx), pt[1]-(a[1]+t*dy));
   }
-
   function simplify(pts, tol) {
-    if (pts.length <= 2) return pts;
-    let maxD = 0, maxI = 0;
-    for (let i = 1; i < pts.length - 1; i++) {
-      const d = perpDist(pts[i], pts[0], pts[pts.length-1]);
-      if (d > maxD) { maxD = d; maxI = i; }
-    }
-    if (maxD > tol) return simplify(pts.slice(0, maxI+1), tol).slice(0,-1).concat(simplify(pts.slice(maxI), tol));
-    return [pts[0], pts[pts.length-1]];
+    if (pts.length<=2) return pts;
+    let mx=0, mi=0;
+    for (let i=1;i<pts.length-1;i++){const d=perpDist(pts[i],pts[0],pts[pts.length-1]);if(d>mx){mx=d;mi=i;}}
+    if (mx>tol) return simplify(pts.slice(0,mi+1),tol).slice(0,-1).concat(simplify(pts.slice(mi),tol));
+    return [pts[0],pts[pts.length-1]];
   }
-
-  async function snapToRoads(rawPts) {
-    let simplified = simplify(rawPts, 0.00015);
-    if (simplified.length > 25) simplified = simplified.filter((_,i) => i % Math.ceil(simplified.length/25) === 0 || i === simplified.length-1);
-    const coords = simplified.map(p => `${p.lng},${p.lat}`).join(';');
-    const res = await fetch(`https://router.project-osrm.org/route/v1/foot/${coords}?overview=full&geometries=geojson`);
+  async function snapToRoads(raw) {
+    let s = simplify(raw, 0.00015);
+    // Cap at 25 waypoints for Mapbox (max 25 coordinates per request)
+    if (s.length > 25) s = s.filter((_,i) => i % Math.ceil(s.length/25) === 0 || i === s.length-1);
+    const coords = s.map(p => `${p[0]},${p[1]}`).join(';');
+    const url = `https://api.mapbox.com/directions/v5/mapbox/walking/${coords}?geometries=geojson&overview=full&access_token=${mapboxgl.accessToken}`;
+    const res = await fetch(url);
     const data = await res.json();
-    if (data.code !== 'Ok' || !data.routes?.[0]) return null;
-    return data.routes[0].geometry.coordinates.map(([lng, lat]) => ({ lat, lng }));
+    if (!data.routes || !data.routes[0]) return null;
+    return data.routes[0].geometry.coordinates;
   }
 
   async function closeLoop() {
-    if (!strokes.length || !startMarker) { showHint('Draw a route first', 2000); return; }
-    const firstPt = strokes[0][0];
-    const lastStroke = strokes[strokes.length - 1];
-    const lastPt = lastStroke[lastStroke.length - 1];
-    snapIndicator.classList.add('visible');
+    if (!strokes.length) return;
+    const first = strokes[0][0], last = strokes[strokes.length-1][strokes[strokes.length-1].length-1];
+    snapEl.classList.add('visible');
     try {
-      const snapped = await snapToRoads([lastPt, firstPt]);
-      const pts = (snapped && snapped.length > 1) ? snapped : [lastPt, firstPt];
-      strokes.push(pts);
-      snappedLines.push(L.polyline(pts, { color: '#b84a3a', weight: 3.5, opacity: 0.85 }).addTo(map));
-    } catch {
-      strokes.push([lastPt, firstPt]);
-      snappedLines.push(L.polyline([lastPt, firstPt], { color: '#b84a3a', weight: 3.5, opacity: 0.85 }).addTo(map));
-    }
-    snapIndicator.classList.remove('visible');
+      const snapped = await snapToRoads([last, first]);
+      strokes.push((snapped&&snapped.length>1)?snapped:[last,first]);
+    } catch { strokes.push([last,first]); }
+    snapEl.classList.remove('visible');
     updateDistance();
-    showHint('Loop closed', 2000);
   }
 
   function undoStroke() {
     if (!strokes.length) return;
     strokes.pop();
-    const line = snappedLines.pop();
-    if (line) map.removeLayer(line);
-    if (!strokes.length && startMarker) {
-      map.removeLayer(startMarker); startMarker = null;
-      showHint('Switch to Route to start drawing', 0);
-    }
+    if (!strokes.length && startMarker) { startMarker.remove(); startMarker = null; }
     updateDistance();
   }
 
   function clearRoute() {
     strokes = [];
-    snappedLines.forEach(l => map.removeLayer(l)); snappedLines = [];
-    if (previewLine) { map.removeLayer(previewLine); previewLine = null; }
-    if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
-    mileMarkers.forEach(m => map.removeLayer(m)); mileMarkers = [];
-    showHint('Switch to Route to start drawing', 0);
-    updateDistance();
+    if (startMarker) { startMarker.remove(); startMarker = null; }
+    mileMarkers.forEach(m => m.remove()); mileMarkers = [];
+    if (map.getSource('route')) map.getSource('route').setData(emptyGeo());
+    if (map.getSource('preview')) map.getSource('preview').setData(emptyGeo());
+    document.getElementById('dist-mi').textContent = '0.00';
+    document.getElementById('dist-km').textContent = '0.00 km';
+  }
+
+  function locateMe() {
+    navigator.geolocation.getCurrentPosition(pos => {
+      const ll = [pos.coords.longitude, pos.coords.latitude];
+      if (locationMarker) locationMarker.remove();
+      const el = document.createElement('div'); el.className = 'locate-dot';
+      locationMarker = new mapboxgl.Marker({ element: el }).setLngLat(ll).addTo(map);
+      map.flyTo({ center: ll, zoom: 15, duration: 1200 });
+    });
+  }
+
+  function toggleRoutes() {
+    routesOpen = !routesOpen;
+    document.getElementById('routes-panel').classList.toggle('open', routesOpen);
+    const rt = document.getElementById('routes-toggle'); if(rt) rt.textContent = routesOpen ? 'Close' : 'Routes';
+    if (routesOpen) renderRoutes();
   }
 
   function openSave() {
-    if (!strokes.length) { showHint('Draw a route first', 2000); return; }
+    if (!strokes.length) return;
     document.getElementById('save-date').value = new Date().toISOString().split('T')[0];
-    document.getElementById('modal-overlay').classList.add('open');
+    document.getElementById('save-sheet').classList.add('open');
   }
-
-  function closeModal(e) {
-    if (e && e.target !== document.getElementById('modal-overlay')) return;
-    document.getElementById('modal-overlay').classList.remove('open');
-  }
+  function closeSave() { document.getElementById('save-sheet').classList.remove('open'); }
 
   function saveRoute() {
     const name = document.getElementById('save-name').value.trim();
@@ -485,34 +1180,68 @@
       date: document.getElementById('save-date').value,
       notes: document.getElementById('save-notes').value.trim(),
       distanceMi: (totalDistance() / 1609.344).toFixed(2),
-      strokes: strokes.map(s => s.map(p => [p.lat, p.lng]))
+      strokes: strokes.map(s => s.map(p => [p[0], p[1]]))
     };
-    const saved = getSaved();
-    saved.unshift(route);
+    const saved = getSaved(); saved.unshift(route);
     localStorage.setItem('runplan_routes', JSON.stringify(saved));
     document.getElementById('save-name').value = '';
     document.getElementById('save-notes').value = '';
-    document.getElementById('modal-overlay').classList.remove('open');
-  
-
-    showHint(`"${name}" saved`, 2500);
+    closeSave();
+    if (routesOpen) renderRoutes();
   }
 
   function getSaved() {
     try { return JSON.parse(localStorage.getItem('runplan_routes') || '[]'); } catch { return []; }
   }
 
-  function renderSavedRoutes() {
+
+  // ── Settings ───────────────────────────────────────────────
+  let settingsOpen = false;
+  let units = 'imperial';
+  let northLocked = false;
+
+  function toggleSettings() {
+    settingsOpen = !settingsOpen;
+    document.getElementById('settings-panel').classList.toggle('open', settingsOpen);
+    document.getElementById('gear-btn').classList.toggle('open', settingsOpen);
+  }
+
+  function setUnits(u) {
+    units = u;
+    document.getElementById('unit-imperial').classList.toggle('active', u === 'imperial');
+    document.getElementById('unit-metric').classList.toggle('active', u === 'metric');
+    document.getElementById("dist-unit").textContent = u === "metric" ? "km" : "mi";
+    updateDistance();
+  }
+
+  function setNorth(n) {
+    northLocked = n === 'true';
+    document.getElementById('north-free').classList.toggle('active', n === 'free');
+    document.getElementById('north-true').classList.toggle('active', n === 'true');
+    if (northLocked) {
+      map.setBearing(0);
+      map.dragRotate.disable();
+      map.touchZoomRotate.disableRotation();
+    } else {
+      map.dragRotate.enable();
+      map.touchZoomRotate.enableRotation();
+    }
+  }
+
+  function renderRoutes() {
     const saved = getSaved();
-    const el = document.getElementById('saved-list');
-    if (!saved.length) { el.innerHTML = '<div class="empty-state">No routes saved yet.</div>'; return; }
+    const el = document.getElementById('routes-inner');
+    if (!saved.length) { el.innerHTML = '<div class="routes-empty">No routes saved yet.</div>'; return; }
     el.innerHTML = saved.map(r => `
       <div class="route-item">
-        <div class="route-item-name">${r.name}</div>
-        <div class="route-item-meta">${r.distanceMi} mi${r.date ? ' · ' + r.date : ''}${r.notes ? ' · ' + r.notes : ''}</div>
+        <div class="route-item-top">
+          <div class="route-item-name">${r.name}</div>
+          <div class="route-item-dist">${r.distanceMi} mi</div>
+        </div>
+        <div class="route-item-meta">${r.date ? r.date : ''}${r.notes ? ' · ' + r.notes : ''}</div>
         <div class="route-item-actions">
-          <button onclick="loadRoute(${r.id})">Load</button>
-          <button class="del" onclick="deleteRoute(${r.id})">Delete</button>
+          <button class="route-item-btn" onclick="loadRoute(${r.id})">Load</button>
+          <button class="route-item-btn del" onclick="deleteRoute(${r.id})">Delete</button>
         </div>
       </div>`).join('');
   }
@@ -521,42 +1250,77 @@
     const route = getSaved().find(r => r.id === id);
     if (!route) return;
     clearRoute();
-    route.strokes.forEach(stroke => {
-      const pts = stroke.map(([lat, lng]) => ({ lat, lng }));
-      strokes.push(pts);
-      snappedLines.push(L.polyline(pts, { color: '#b84a3a', weight: 3.5, opacity: 0.85 }).addTo(map));
-      if (!startMarker && pts.length) {
-        startMarker = L.marker(pts[0], {
-          icon: L.divIcon({ className: '', html: '<div class="start-label">Start</div>', iconAnchor: [0, 12] }),
-          interactive: false
-        }).addTo(map);
-      }
-    });
+    strokes = route.strokes;
+    if (strokes.length && strokes[0].length) {
+      const el = document.createElement('div'); el.className = 'start-pip'; el.textContent = 'Start';
+      startMarker = new mapboxgl.Marker({ element: el, anchor: 'left' }).setLngLat(strokes[0][0]).addTo(map);
+    }
     updateDistance();
-    map.fitBounds(L.polyline(strokes.flat()).getBounds(), { padding: [40, 40] });
-    showHint(`Loaded "${route.name}"`, 2000);
+    const all = strokes.flat();
+    if (all.length > 1) {
+      const bounds = all.reduce((b, p) => b.extend(p), new mapboxgl.LngLatBounds(all[0], all[0]));
+      map.fitBounds(bounds, { padding: 100, duration: 1000 });
+    }
+    toggleRoutes();
   }
 
   function deleteRoute(id) {
     const saved = getSaved().filter(r => r.id !== id);
     localStorage.setItem('runplan_routes', JSON.stringify(saved));
-  
-
+    renderRoutes();
   }
 
-  function locateMe() { map.locate({ setView: true, maxZoom: 15 }); }
 
-  map.on('locationfound', e => {
-    if (locationPin) map.removeLayer(locationPin);
-    locationPin = L.circleMarker(e.latlng, {
-      radius: 9, color: '#fff', weight: 3,
-      fillColor: '#3a7a5a', fillOpacity: 1
-    }).addTo(map);
-    map.setView(e.latlng, 15);
-  });
+  // ── Mobile mode toggle ─────────────────────────────────────
+  let mobileMode = 'pan';
 
-  map.on('locationerror', () => showHint('Location unavailable', 2000));
+  function setMobileMode(m) {
+    mobileMode = m;
+    document.getElementById('mobile-btn-draw').classList.toggle('active', m === 'draw');
+    document.getElementById('mobile-btn-pan').classList.toggle('active', m === 'pan');
+    if (m === 'pan') {
+      map.dragPan.enable();
+      map.scrollZoom.enable();
+      map.touchZoomRotate.enable();
+      spaceHeld = true;
+    } else {
+      map.dragPan.disable();
+      map.scrollZoom.disable();
+      spaceHeld = false;
+    }
+  }
 
+  // ── Wordmark letter flip ───────────────────────────────────
+  (function() {
+    const letters = document.querySelectorAll('.wl');
+    const flipped = new Set();
+
+    function maybeFlip() {
+      const idx = Math.floor(Math.random() * letters.length);
+      const letter = letters[idx];
+
+      if (flipped.has(idx)) {
+        // flip back
+        letter.classList.remove('flipped');
+        flipped.delete(idx);
+      } else {
+        // flip forward
+        letter.classList.add('flipped');
+        flipped.add(idx);
+        // auto flip back after random short delay
+        setTimeout(() => {
+          letter.classList.remove('flipped');
+          flipped.delete(idx);
+        }, 200 + Math.random() * 400);
+      }
+
+      // schedule next event at random interval
+      setTimeout(maybeFlip, 600 + Math.random() * 2400);
+    }
+
+    // kick off after a short pause
+    setTimeout(maybeFlip, 1200);
+  })();
 
 </script>
 </body>
