@@ -21,7 +21,14 @@
 
 
   // ── Mobile cmd panel toggle ────────────────────────────────
-  function toggleCmd() {}
+  let cmdExpanded = false;
+  function toggleCmd() {
+    cmdExpanded = !cmdExpanded;
+    document.getElementById('cmd-panel').classList.toggle('expanded', cmdExpanded);
+    // Hide Draw/Pan when action bar is open
+    const modebar = document.getElementById('mobile-mode-bar');
+    if (modebar) modebar.style.display = cmdExpanded ? 'none' : 'flex';
+  }
 
 
 
@@ -654,7 +661,7 @@
 
       /* Distance counter — smaller, bottom left */
       .distance-block {
-        bottom: calc(200px + env(safe-area-inset-bottom));
+        bottom: calc(80px + env(safe-area-inset-bottom));
         left: 16px;
       }
       .cmd-dist-mi {
@@ -763,22 +770,27 @@
 
       /* Collapsed action block by default */
       .cmd {
-        transform: none;
-        box-shadow: 0 -2px 20px rgba(0,0,0,0.08);
+        transform: translateY(calc(100% - 56px));
+        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 -4px 24px rgba(0,0,0,0.1);
         border-bottom: none;
         padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
       }
-
-      .cmd-handle {
-        display: none !important;
+      .cmd.expanded {
+        transform: translateY(0);
       }
 
-      /* Draw/Pan toggle — top left under wordmark, same width */
+      .cmd-handle {
+        display: flex !important;
+      }
+
+      /* Draw/Pan toggle — bottom right */
       .mobile-mode-bar {
         display: flex;
-        top: calc(env(safe-area-inset-top) + 58px);
-        left: max(16px, env(safe-area-inset-left));
-        right: auto;
+        bottom: calc(80px + env(safe-area-inset-bottom));
+        right: max(16px, env(safe-area-inset-right));
+        left: auto;
+        top: auto;
         transform: none;
         width: 120px;
       }
@@ -788,8 +800,8 @@
       }
 
       /* Distance counter — above fixed action bar */
-      /* Space hint hidden */
-      .space-hint { display: none; }
+      /* Space hint hidden on all mobile */
+      .space-hint { display: none !important; }
     }
 
     /* Handle — hidden on desktop */
@@ -806,6 +818,9 @@
       height: 4px;
       background: rgba(15,15,13,0.2);
       border-radius: 2px;
+    }
+    @media (orientation: landscape) and (max-height: 500px) {
+      .space-hint { display: none !important; }
     }
   </style>
 </head>
@@ -1365,7 +1380,14 @@
 
 
   // ── Mobile cmd panel toggle ────────────────────────────────
-  function toggleCmd() {}
+  let cmdExpanded = false;
+  function toggleCmd() {
+    cmdExpanded = !cmdExpanded;
+    document.getElementById('cmd-panel').classList.toggle('expanded', cmdExpanded);
+    // Hide Draw/Pan when action bar is open
+    const modebar = document.getElementById('mobile-mode-bar');
+    if (modebar) modebar.style.display = cmdExpanded ? 'none' : 'flex';
+  }
 
   // ── Mobile mode toggle ─────────────────────────────────────
   let mobileMode = 'pan';
