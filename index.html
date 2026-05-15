@@ -631,7 +631,7 @@
       /* Wordmark — smaller */
       .wordmark {
         font-size: 26px;
-        top: max(16px, env(safe-area-inset-top));
+        top: calc(env(safe-area-inset-top) + 16px);
         left: max(16px, env(safe-area-inset-left));
         z-index: 200;
         letter-spacing: 0.18em;
@@ -639,7 +639,7 @@
 
       /* Gear — top right */
       .gear-btn {
-        top: max(16px, env(safe-area-inset-top));
+        top: calc(env(safe-area-inset-top) + 16px);
         right: max(16px, env(safe-area-inset-right));
         width: 40px;
         height: 40px;
@@ -648,7 +648,7 @@
 
       /* Settings panel */
       .settings-panel {
-        top: 62px;
+        top: calc(env(safe-area-inset-top) + 68px);
         right: 16px;
         width: calc(100vw - 32px);
       }
@@ -766,7 +766,7 @@
       /* Draw/Pan toggle — top left under wordmark, same width */
       .mobile-mode-bar {
         display: flex;
-        top: max(58px, calc(env(safe-area-inset-top) + 46px));
+        top: calc(env(safe-area-inset-top) + 58px);
         left: max(16px, env(safe-area-inset-left));
         right: auto;
         transform: none;
