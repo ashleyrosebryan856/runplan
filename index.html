@@ -765,6 +765,8 @@
       .cmd {
         transform: none;
         box-shadow: 0 -2px 20px rgba(0,0,0,0.08);
+        border-bottom: none;
+        padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
       }
 
       .cmd-handle {
@@ -785,9 +787,9 @@
         text-align: center;
       }
 
-      /* Distance counter sits above handle */
+      /* Distance counter — above fixed action bar */
       .distance-block {
-        bottom: 60px;
+        bottom: calc(200px + env(safe-area-inset-bottom));
         left: 16px;
       }
 
@@ -869,7 +871,7 @@
     <span class="cmd-dist-mi" id="dist-mi">0.00</span>
     <span class="cmd-dist-unit" id="dist-unit">mi</span>
   </div>
-  <div class="cmd-dist-km" id="dist-km">0.00 km</div>
+  <div class="cmd-dist-km" id="dist-km" style="display:none;">0.00 km</div>
 </div>
 
 <!-- Command Center -->
