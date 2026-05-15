@@ -94,7 +94,7 @@
     body { font-family: var(--sans); background: var(--ink); color: var(--ink); }
 
     /* ── Map ── */
-    #map { position: fixed; inset: 0; z-index: 0; }
+    #map { position: fixed; top: 0; left: 0; right: 0; bottom: 0; margin-bottom: calc(-1 * env(safe-area-inset-bottom)); z-index: 0; }
     body.route-mode #map { cursor: crosshair; }
 
     /* ── Wordmark — top left ── */
@@ -675,7 +675,8 @@
         width: 100%;
         border-radius: 16px 16px 0 0;
         border-bottom: none;
-        padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
+        padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
+        margin-bottom: calc(-1 * env(safe-area-inset-bottom));
       }
 
       /* Bigger touch targets on mobile */
