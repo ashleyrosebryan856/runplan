@@ -58,15 +58,15 @@
         setTimeout(() => {
           letter.classList.remove('flipped');
           flipped.delete(idx);
-        }, 200 + Math.random() * 400);
+        }, 400 + Math.random() * 800);
       }
 
       // schedule next event at random interval
-      setTimeout(maybeFlip, 600 + Math.random() * 2400);
+      setTimeout(maybeFlip, 2500 + Math.random() * 5000);
     }
 
     // kick off after a short pause
-    setTimeout(maybeFlip, 1200);
+    setTimeout(maybeFlip, 3000);
   })();
 
 </script>
@@ -111,7 +111,7 @@
     }
     .wl {
       display: inline-block;
-      transition: transform 0.12s cubic-bezier(0.4,0,0.2,1);
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
       transform-origin: center center;
     }
     .wl.flipped {
@@ -630,10 +630,11 @@
 
       /* Wordmark — smaller */
       .wordmark {
-        font-size: 22px;
+        font-size: 26px;
         top: max(16px, env(safe-area-inset-top));
         left: max(16px, env(safe-area-inset-left));
         z-index: 200;
+        letter-spacing: 0.18em;
       }
 
       /* Gear — top right */
@@ -716,14 +717,13 @@
       }
     }
 
-    /* Hide mobile mode bar on desktop */
+    /* Mobile mode bar — hidden on desktop, top right under gear */
     .mobile-mode-bar {
       display: none;
       position: fixed;
-      bottom: 155px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 100;
+      top: 68px;
+      right: 16px;
+      z-index: 200;
       gap: 0;
       border: var(--border);
       border-radius: var(--radius);
@@ -740,7 +740,7 @@
       color: var(--ink);
       background: var(--white);
       border: none;
-      padding: 10px 20px 8px;
+      padding: 9px 16px 7px;
       cursor: pointer;
       transition: all 0.2s var(--ease);
     }
@@ -763,29 +763,18 @@
         display: flex !important;
       }
 
-      /* Draw/Pan toggle — bottom right floating */
+      /* Draw/Pan toggle — top left under wordmark, same width */
       .mobile-mode-bar {
-        bottom: 20px;
-        right: 16px;
-        left: auto;
+        display: flex;
+        top: max(58px, calc(env(safe-area-inset-top) + 46px));
+        left: max(16px, env(safe-area-inset-left));
+        right: auto;
         transform: none;
-        flex-direction: column;
-        gap: 6px;
-        background: transparent;
-        border: none;
-        box-shadow: none;
+        width: 120px;
       }
       .mobile-mode-btn {
-        border: var(--border);
-        border-radius: var(--radius);
-        background: var(--white);
-        box-shadow: 0 2px 12px rgba(0,0,0,0.12);
-        width: 64px;
+        flex: 1;
         text-align: center;
-      }
-      .mobile-mode-btn.active {
-        background: var(--ink);
-        color: var(--white);
       }
 
       /* Distance counter sits above handle */
@@ -1414,15 +1403,15 @@
         setTimeout(() => {
           letter.classList.remove('flipped');
           flipped.delete(idx);
-        }, 200 + Math.random() * 400);
+        }, 400 + Math.random() * 800);
       }
 
       // schedule next event at random interval
-      setTimeout(maybeFlip, 600 + Math.random() * 2400);
+      setTimeout(maybeFlip, 2500 + Math.random() * 5000);
     }
 
     // kick off after a short pause
-    setTimeout(maybeFlip, 1200);
+    setTimeout(maybeFlip, 3000);
   })();
 
 </script>
