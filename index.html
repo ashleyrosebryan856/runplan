@@ -21,11 +21,7 @@
 
 
   // ── Mobile cmd panel toggle ────────────────────────────────
-  let cmdExpanded = false;
-  function toggleCmd() {
-    cmdExpanded = !cmdExpanded;
-    document.getElementById('cmd-panel').classList.toggle('expanded', cmdExpanded);
-  }
+  function toggleCmd() {}
 
 
 
@@ -658,7 +654,7 @@
 
       /* Distance counter — smaller, bottom left */
       .distance-block {
-        bottom: 160px;
+        bottom: calc(220px + env(safe-area-inset-bottom));
         left: 16px;
       }
       .cmd-dist-mi {
@@ -767,18 +763,12 @@
 
       /* Collapsed action block by default */
       .cmd {
-        transform: translateY(calc(100% - 56px));
-        transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 100px 0 100px #ffffff;
-      }
-      .cmd.expanded {
-        transform: translateY(0);
-        box-shadow: none;
+        transform: none;
+        box-shadow: 0 -2px 20px rgba(0,0,0,0.08);
       }
 
-      /* Drag handle at top of cmd */
       .cmd-handle {
-        display: flex !important;
+        display: none !important;
       }
 
       /* Draw/Pan toggle — top left under wordmark, same width */
@@ -1378,11 +1368,7 @@
 
 
   // ── Mobile cmd panel toggle ────────────────────────────────
-  let cmdExpanded = false;
-  function toggleCmd() {
-    cmdExpanded = !cmdExpanded;
-    document.getElementById('cmd-panel').classList.toggle('expanded', cmdExpanded);
-  }
+  function toggleCmd() {}
 
   // ── Mobile mode toggle ─────────────────────────────────────
   let mobileMode = 'pan';
